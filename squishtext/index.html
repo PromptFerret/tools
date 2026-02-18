@@ -262,6 +262,7 @@
   <button class="btn-action" id="unsquishBtn" onclick="doUnsquish()" disabled>Unsquish</button>
   <div class="sep"></div>
   <button id="copyBtn" onclick="copyOutput()" disabled>Copy</button>
+  <button id="linkBtn" onclick="copyLink()" disabled>Link</button>
   <button id="clearBtn" onclick="clearAll()">Clear</button>
 </div>
 
@@ -295,8 +296,10 @@
 <script>
 // ── State ──
 let outputText = '';
+let rawBase64 = ''; // raw base64 without header, used for link generation
 const noSupport = typeof CompressionStream === 'undefined' || typeof DecompressionStream === 'undefined';
-const HEADER = '[SquishText] Expand at https://promptferret.github.io/tools/squishtext/\n';
+const HEADER = '[SquishText] To decode, base64-decode the string below then inflate (deflate-raw). Or paste at https://promptferret.github.io/tools/squishtext/\n';
+const BASE_URL = 'https://promptferret.github.io/tools/squishtext/';
 
 // ── Check browser support ──
 if (noSupport) {
@@ -359,6 +362,7 @@ async function doSquish() {
 
   try {
     const encoded = await compress(input);
+    rawBase64 = encoded;
     const payload = HEADER + encoded;
     outputText = payload;
     showOutput(payload);
@@ -411,6 +415,7 @@ function setButtons(enabled) {
 
 function enableCopy() {
   document.getElementById('copyBtn').disabled = false;
+  document.getElementById('linkBtn').disabled = !rawBase64;
   document.getElementById('paneCopyBtn').disabled = false;
   document.getElementById('paneCopyBtn').style.visibility = 'visible';
 }
@@ -477,6 +482,27 @@ async function copyInput() {
   }
 }
 
+async function copyLink() {
+  if (!rawBase64) return;
+  // URL-safe base64: replace +→-, /→_, strip trailing =
+  const urlSafe = rawBase64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const url = BASE_URL + '#' + urlSafe;
+  try {
+    await navigator.clipboard.writeText(url);
+    setStatus('Share link copied! (' + url.length.toLocaleString() + ' chars)', 'success');
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    setStatus('Share link copied! (' + url.length.toLocaleString() + ' chars)', 'success');
+  }
+}
+
 async function copyOutput() {
   if (!outputText) return;
   try {
@@ -499,17 +525,41 @@ async function copyOutput() {
 function clearAll() {
   document.getElementById('inputArea').value = '';
   outputText = '';
+  rawBase64 = '';
   showOutput('');
   document.getElementById('statsBar').innerHTML = '';
   document.getElementById('statusEl').textContent = '';
   document.getElementById('squishBtn').disabled = true;
   document.getElementById('unsquishBtn').disabled = true;
   document.getElementById('copyBtn').disabled = true;
+  document.getElementById('linkBtn').disabled = true;
   document.getElementById('inputCopyBtn').disabled = true;
   document.getElementById('inputCopyBtn').style.visibility = 'hidden';
   document.getElementById('paneCopyBtn').disabled = true;
   document.getElementById('paneCopyBtn').style.visibility = 'hidden';
+  // Clear hash without triggering navigation
+  if (window.location.hash) history.replaceState(null, '', window.location.pathname);
 }
+
+// ── Auto-load from URL hash ──
+(async function loadFromHash() {
+  const hash = window.location.hash.slice(1);
+  if (!hash || noSupport) return;
+
+  setStatus('Unsquishing from link...', 'loading');
+  try {
+    const decoded = await decompress(hash);
+    outputText = decoded;
+    rawBase64 = hash.replace(/-/g, '+').replace(/_/g, '/');
+    showOutput(decoded);
+    const cleanHash = hash.replace(/[\r\n\s]/g, '');
+    showStats(decoded.length, new TextEncoder().encode(decoded).length, cleanHash.length);
+    setStatus('Unsquished from shared link!', 'success');
+    enableCopy();
+  } catch (e) {
+    setStatus('Failed to decode link — invalid or corrupted payload.', 'error');
+  }
+})();
 </script>
 
 </body>
