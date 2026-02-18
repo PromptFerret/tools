@@ -202,6 +202,74 @@ This distinguishes e.g. Warlock spells (◉) from item-granted spells like Ring 
 | Appearance Image URL | 175 | 2 |
 | Symbol Image URL | 175 | 8 |
 
+## v1.4 Layout — Position Map Differences
+
+The v1.4 template (public-domain "D&D 5e Gsheet v1.4") shares most positions with v4.0. Only the differences are listed here — all other fields use the same positions as v4.0.
+
+### Template Detection
+| Field | Row | Col | Notes |
+|-------|-----|-----|-------|
+| Template Marker | 3 | 42 | Contains "1.4" |
+
+### Fields That Differ from v4.0
+| Field | v4.0 Position | v1.4 Position |
+|-------|---------------|---------------|
+| Background | [10, 35] | [4, 25] |
+| Alignment | [27, 35] | [6, 25] |
+| Hit Dice | [24, 17] | [25, 17] |
+| Total Level | Additional tab only | [5, 37] (main sheet) |
+
+### Equipment (v1.4)
+- Col: 34, Rows: 31-41
+- Label to exclude: `WEAPONS & ARMOR` (v4.0 uses `EQUIPPED ITEMS` at col 28, rows 44-55)
+
+### Features & Traits (v1.4)
+- Cols: 25, 33
+- Rows: 44-55 (12 rows x 2 cols = 24 slots)
+- v4.0 has 78 slots (rows 58-83, cols 2/15/28)
+
+### Proficiencies (v1.4)
+- Single column at col 2, rows 48-54
+- Inline text format: e.g. `"Proficient in Armor: Light, Medium"`
+- Parsed by splitting on first colon → label/value
+- v4.0 uses separate label (col 2) and value (col 8) columns
+
+### Main Sheet Inventory (v1.4 only)
+v1.4 has inventory on the main sheet instead of a separate Inventory tab.
+
+#### Currency
+| Currency | Row | Col |
+|----------|-----|-----|
+| Copper | 59 | 3 |
+| Silver | 62 | 3 |
+| Electrum | 65 | 3 |
+| Gold | 68 | 3 |
+| Platinum | 71 | 3 |
+
+#### Inventory Summary
+| Field | Row | Col |
+|-------|-----|-----|
+| Coin Value | 75 | 4 |
+| Wealth | 76 | 3 |
+| Max Weight | 80 | 4 |
+| Current Weight | 81 | 3 |
+
+#### Items
+- Rows: 59-83 (two side-by-side item lists, same column structure as Inventory tab)
+- Left: qty=8, name=9, cost=17, weight=20
+- Right: qty=25, name=26, cost=34, weight=37
+
+### Additional Tab (v1.4)
+The v1.4 Additional tab is nearly identical to v4.0's. Differences:
+- **Immunities** at col 30 (v4.0: col 27)
+- **No vulnerabilities** column (v4.0: col 34)
+- All other positions (attacks, cantrips, spells, classes, resistances) are the same
+
+### Tab Expectations (v1.4)
+- Has an **Additional** tab (with layout differences noted above)
+- **No separate Inventory tab** — inventory is on the main sheet (set to null in template)
+- If custom tabs matching Inventory structure are found, auto-detection still handles them
+
 ## Spell Preparation Tab
 
 The Spell Preparation tab is the **source of truth** for spells when present. It contains richer metadata (spell source attribution, class assignment, "Always prepared" flags) that the main sheet flattens away. Spell slot info (maxSlots, curSlots) always comes from the main sheet.

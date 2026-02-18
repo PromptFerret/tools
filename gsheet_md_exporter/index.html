@@ -450,6 +450,7 @@ function discoverTabs(sheetId) {
 
 // Tab descriptions for tooltips
 const TAB_INFO = {
+  'v1.4':              'Main character sheet (v1.4 layout)',
   'v4.0':              'Main character sheet (v4.0 layout)',
   'Additional':        'Extended attacks, spells, multiclass, defenses',
   'Inventory':         'Currency, wealth, and item list',
@@ -592,9 +593,9 @@ function processCustomTabs(d, customTabs, customCsvs, template) {
     detectedTypes[customTabs[i].name] = tabType;
     usedNames.push(customTabs[i].name);
 
-    if (tabType === 'additional') {
+    if (tabType === 'additional' && template.additionalTab) {
       extractAdditional(d, rows, template.additionalTab);
-    } else if (tabType === 'inventory') {
+    } else if (tabType === 'inventory' && template.inventoryTab) {
       const container = { name: customTabs[i].name };
       extractInventory(container, rows, template.inventoryTab);
       d.extraInventories.push(container);
@@ -801,7 +802,7 @@ const TEMPLATES = {
     },
 
     languages: { rows: [44, 55], col: 17 },
-    equipment: { rows: [44, 55], col: 28 },
+    equipment: { rows: [44, 55], col: 28, excludeLabel: 'EQUIPPED ITEMS' },
 
     proficiencies: { rows: [48, 54], labelCol: 2, valueCol: 8 },
 
@@ -903,6 +904,150 @@ const TEMPLATES = {
         right: { qtyCol: 25, nameCol: 26, costCol: 34, weightCol: 37 }
       }
     }
+  },
+
+  dnd_5e_v14: {
+    name: "D&D 5e Gsheet v1.4",
+    detect: [3, 42, "1.4"],
+
+    charName:          [5, 2],
+    classLevel:        [4, 19],
+    race:              [6, 19],
+    playerName:        [4, 30],
+    background:        [4, 25],
+    alignment:         [6, 25],
+
+    ac:                [11, 17],
+    initiative:        [11, 21],
+    speed:             [11, 25],
+    inspiration:       [10, 7],
+    hpMax:             [15, 20],
+    currentHp:         [16, 17],
+    tempHp:            [20, 17],
+    condition:         [19, 20],
+    hitDice:           [25, 17],
+    profBonus:         [13, 7],
+    passivePerception: [44, 2],
+    totalLevel:        [5, 37],
+
+    abilities: [
+      ["STR", 14, 12],
+      ["DEX", 19, 17],
+      ["CON", 24, 22],
+      ["INT", 29, 27],
+      ["WIS", 34, 32],
+      ["CHA", 39, 37]
+    ],
+
+    saves:  { rows: [16, 21], profCol: 7, modCol: 8, nameCol: 9 },
+    skills: { rows: [24, 41], profCol: 7, modCol: 8, nameCol: 9 },
+
+    attacks: {
+      rows: [31, 35], nameCol: 17, bonusCol: 24, damageCol: 28,
+      extraRows: [36, 41]
+    },
+
+    languages: { rows: [44, 55], col: 17 },
+    equipment: { rows: [31, 41], col: 34, excludeLabel: 'WEAPONS & ARMOR' },
+
+    proficiencies: { rows: [48, 54], col: 2, inline: true },
+
+    personality: {
+      col: 30,
+      traits: [11, 12, 13],
+      ideals: [15, 16, 17],
+      bonds:  [19, 20, 21],
+      flaws:  [23, 24, 25]
+    },
+
+    features: { rows: [44, 55], cols: [25, 33] },
+
+    spellcasting: {
+      class:       [90, 2],
+      ability:     [90, 20],
+      saveDC:      [90, 27],
+      attackBonus: [90, 34]
+    },
+
+    cantrips: { rows: [95, 97], cols: [13, 23, 33] },
+
+    spells: [
+      { level: 1, startRow: 99,  rows: 5, cols: [[2,3],[12,13],[22,23]],  maxSlots: [100,36], curSlots: [100,32] },
+      { level: 2, startRow: 105, rows: 5, cols: [[12,13],[22,23],[32,33]], maxSlots: [106,4],  curSlots: [106,8]  },
+      { level: 3, startRow: 111, rows: 5, cols: [[2,3],[12,13],[22,23]],  maxSlots: [112,36], curSlots: [112,32] },
+      { level: 4, startRow: 117, rows: 4, cols: [[12,13],[22,23],[32,33]], maxSlots: [118,4],  curSlots: [118,8]  },
+      { level: 5, startRow: 122, rows: 4, cols: [[2,3],[12,13],[22,23]],  maxSlots: [123,36], curSlots: [123,32] },
+      { level: 6, startRow: 127, rows: 4, cols: [[12,13],[22,23],[32,33]], maxSlots: [128,4],  curSlots: [128,8]  },
+      { level: 7, startRow: 132, rows: 3, cols: [[2,3],[12,13],[22,23]],  maxSlots: [133,36], curSlots: [133,32] },
+      { level: 8, startRow: 136, rows: 3, cols: [[12,13],[22,23],[32,33]], maxSlots: [137,4],  curSlots: [137,8]  },
+      { level: 9, startRow: 140, rows: 3, cols: [[2,3],[12,13],[22,23]],  maxSlots: [141,36], curSlots: [141,32] }
+    ],
+
+    physical: {
+      age: [147, 2], height: [147, 5], weight: [147, 8], size: [147, 11],
+      gender: [149, 2], eyes: [149, 5], hair: [149, 8], skin: [149, 11]
+    },
+
+    allies:    { rows: [146, 161], col: 17 },
+    backstory: { rows: [164, 176], col: 17 },
+
+    characterImage: [154, 2],
+    appearanceUrl:  [175, 2],
+    symbolUrl:      [175, 8],
+
+    // Main sheet inventory (v1.4 has inventory on main sheet, v4.0 uses separate tab)
+    mainInventory: {
+      currency: {
+        copper:   [59, 3],
+        silver:   [62, 3],
+        electrum: [65, 3],
+        gold:     [68, 3],
+        platinum: [71, 3]
+      },
+      coinValue:  [75, 4],
+      wealth:     [76, 3],
+      maxWeight:  [80, 4],
+      weight:     [81, 3],
+      items: {
+        rows: [59, 83],
+        left:  { qtyCol: 8, nameCol: 9, costCol: 17, weightCol: 20 },
+        right: { qtyCol: 25, nameCol: 26, costCol: 34, weightCol: 37 }
+      }
+    },
+
+    // ── Additional Tab (same as v4.0 except immunities col and no vulnerabilities) ──
+    additionalTab: {
+      name: 'Additional',
+
+      attacks: {
+        rows: [2, 12],
+        left:  { nameCol: 1, bonusCol: 8, damageCol: 12 },
+        right: { nameCol: 22, bonusCol: 29, damageCol: 33 }
+      },
+
+      cantrips: { rows: [16, 18], cols: [[12,13],[22,23],[32,33]] },
+
+      spells: [
+        { level: 1, startRow: 20, rows: 5, cols: [[2,3],[12,13],[22,23]] },
+        { level: 2, startRow: 26, rows: 5, cols: [[12,13],[22,23],[32,33]] },
+        { level: 3, startRow: 32, rows: 5, cols: [[2,3],[12,13],[22,23]] },
+        { level: 4, startRow: 38, rows: 4, cols: [[12,13],[22,23],[32,33]] },
+        { level: 5, startRow: 43, rows: 4, cols: [[2,3],[12,13],[22,23]] },
+        { level: 6, startRow: 48, rows: 4, cols: [[12,13],[22,23],[32,33]] },
+        { level: 7, startRow: 53, rows: 3, cols: [[2,3],[12,13],[22,23]] },
+        { level: 8, startRow: 57, rows: 3, cols: [[12,13],[22,23],[32,33]] },
+        { level: 9, startRow: 61, rows: 3, cols: [[2,3],[12,13],[22,23]] }
+      ],
+
+      classes: { rows: [68, 77], classCol: 2, levelCol: 13 },
+      totalLevel: [78, 13],
+
+      resistances: { rows: [68, 78], col: 19 },
+      immunities:  { rows: [68, 78], col: 30 }
+    },
+
+    // No separate Inventory tab (inventory is on main sheet)
+    inventoryTab: null
   }
 };
 
@@ -936,6 +1081,9 @@ function extract(rows, map) {
   d.player = cell(rows, ...map.playerName);
   d.background = cell(rows, ...map.background);
   d.alignment = cell(rows, ...map.alignment);
+  if (map.totalLevel) {
+    d.totalLevel = cell(rows, ...map.totalLevel);
+  }
 
   // Combat Stats
   d.ac = cell(rows, ...map.ac);
@@ -1008,10 +1156,11 @@ function extract(rows, map) {
   d.languages = scanColumn(rows, map.languages.rows[0], map.languages.rows[1], map.languages.col, ['LANGUAGES']);
 
   // Equipment
+  const equipLabel = map.equipment.excludeLabel || 'EQUIPPED ITEMS';
   d.equipment = [];
   for (let r = map.equipment.rows[0]; r <= map.equipment.rows[1]; r++) {
     const v = cell(rows, r, map.equipment.col);
-    if (v && v !== 'EQUIPPED ITEMS') {
+    if (v && v !== equipLabel) {
       const attunement = v.startsWith('*');
       d.equipment.push({ name: attunement ? v.slice(1) : v, attunement });
     }
@@ -1020,10 +1169,26 @@ function extract(rows, map) {
   // Proficiencies — reads labels from sheet
   const pr = map.proficiencies;
   d.proficiencies = [];
-  for (let r = pr.rows[0]; r <= pr.rows[1]; r++) {
-    const label = cell(rows, r, pr.labelCol).replace(/:?\s*$/, '');
-    const value = cell(rows, r, pr.valueCol);
-    if (value && label !== 'PROFICIENCIES') d.proficiencies.push({ label, value });
+  if (pr.inline) {
+    // v1.4: single column, inline text like "Proficient in Armor: Light, Medium"
+    for (let r = pr.rows[0]; r <= pr.rows[1]; r++) {
+      const v = cell(rows, r, pr.col);
+      if (v && v !== 'PROFICIENCIES') {
+        const colonIdx = v.indexOf(':');
+        if (colonIdx > 0) {
+          d.proficiencies.push({ label: v.slice(0, colonIdx).trim(), value: v.slice(colonIdx + 1).trim() });
+        } else {
+          d.proficiencies.push({ label: '', value: v });
+        }
+      }
+    }
+  } else {
+    // v4.0: separate label and value columns
+    for (let r = pr.rows[0]; r <= pr.rows[1]; r++) {
+      const label = cell(rows, r, pr.labelCol).replace(/:?\s*$/, '');
+      const value = cell(rows, r, pr.valueCol);
+      if (value && label !== 'PROFICIENCIES') d.proficiencies.push({ label, value });
+    }
   }
 
   // Personality
@@ -1075,6 +1240,11 @@ function extract(rows, map) {
   d.characterImage = cell(rows, ...map.characterImage);
   d.appearanceUrl = cell(rows, ...map.appearanceUrl);
 
+  // Main sheet inventory (v1.4 has inventory on main sheet, v4.0 uses separate tab)
+  if (map.mainInventory) {
+    extractInventory(d, rows, map.mainInventory);
+  }
+
   return d;
 }
 
@@ -1122,9 +1292,9 @@ function extractAdditional(d, rows, map) {
   d.totalLevel = cell(rows, ...map.totalLevel);
 
   // Resistances, Immunities, Vulnerabilities
-  d.resistances = scanColumn(rows, map.resistances.rows[0], map.resistances.rows[1], map.resistances.col);
-  d.immunities = scanColumn(rows, map.immunities.rows[0], map.immunities.rows[1], map.immunities.col);
-  d.vulnerabilities = scanColumn(rows, map.vulnerabilities.rows[0], map.vulnerabilities.rows[1], map.vulnerabilities.col);
+  if (map.resistances) d.resistances = scanColumn(rows, map.resistances.rows[0], map.resistances.rows[1], map.resistances.col);
+  if (map.immunities) d.immunities = scanColumn(rows, map.immunities.rows[0], map.immunities.rows[1], map.immunities.col);
+  if (map.vulnerabilities) d.vulnerabilities = scanColumn(rows, map.vulnerabilities.rows[0], map.vulnerabilities.rows[1], map.vulnerabilities.col);
 }
 
 // ── Extract Spell Preparation Tab Data ──
