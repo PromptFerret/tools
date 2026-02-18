@@ -15,54 +15,180 @@
     <meta property="og:description" content="Open-source AI and D&D utilities built to remove workflow friction.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://promptferret.github.io/tools/">
+
+<style>
+  :root {
+    --bg: #0f0f17;
+    --surface: #1a1a2e;
+    --surface2: #252545;
+    --accent: #7c5cbf;
+    --accent-hover: #9b7ed8;
+    --accent-glow: rgba(124, 92, 191, 0.25);
+    --text: #e8e6f0;
+    --text-muted: #8a8a9a;
+    --text-dim: #5a5a6a;
+    --border: #2a2a3e;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .header {
+    padding: 1.5rem 2rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .header h1 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .header h1 span { color: var(--accent); }
+
+  .header .tagline {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+  }
+
+  .content {
+    flex: 1;
+    max-width: 720px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+
+  .intro {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    line-height: 1.65;
+    margin-bottom: 2rem;
+  }
+
+  h2 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tool-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: border-color 0.15s;
+  }
+
+  .tool-card:hover {
+    border-color: var(--accent);
+  }
+
+  .tool-card h3 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+  }
+
+  .tool-card h3 a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .tool-card h3 a:hover {
+    color: var(--accent-hover);
+  }
+
+  .tool-card p {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+
+  .section { margin-bottom: 2rem; }
+
+  .about {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+
+  .about a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .about a:hover { color: var(--accent-hover); }
+
+  .footer {
+    padding: 0.4rem 1.5rem;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+</style>
 </head>
+<body>
 
-<body style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 800px; margin: 60px auto; line-height: 1.6; padding: 0 20px;">
+<div class="header">
+  <h1><span>PromptFerret</span> Tools</h1>
+  <p class="tagline">Open-source AI & D&D utilities</p>
+</div>
 
-    <h1>PromptFerret Tools</h1>
+<div class="content">
+  <p class="intro">
+    A collection of web tools focused on AI workflows, D&D utilities,
+    and chatbot integrations. Built to remove real friction points.
+    Vibe coded where appropriate. Engineered where necessary.
+  </p>
 
-    <p>
-        A collection of open-source web tools focused on AI workflows, D&D utilities,
-        and chatbot integrations.
-    </p>
-
-    <p>
-        These tools are built to remove real friction points — especially around
-        character management, structured exports, and AI-assisted gameplay.
-        Vibe coded where appropriate. Engineered where necessary.
-    </p>
-
-    <hr>
-
+  <div class="section">
     <h2>Available Tools</h2>
+    <div class="tool-card">
+      <h3><a href="./gsheet_md_exporter/">GSheet D&D Character Exporter</a></h3>
+      <p>Export Google Sheet D&D 5e character sheets to Markdown or JSON for AI interaction and structured workflows.</p>
+    </div>
+  </div>
 
-    <ul>
-        <li>
-            <strong>GSheet Character Exporter</strong><br>
-            Export Google Sheet D&D character sheets to Markdown or JSON
-            for AI interaction and structured workflows.<br>
-            <a href="./gsheet_md_exporter/">Open Tool</a>
-        </li>
-    </ul>
-
-    <hr>
-
+  <div class="section">
     <h2>About</h2>
-
-    <p>
-        Created and maintained by <strong>PromptFerret</strong>.
+    <p class="about">
+      Created and maintained by <strong>PromptFerret</strong>.<br>
+      Main site: <a href="https://promptferret.github.io/" target="_blank">promptferret.github.io</a><br>
+      Licensed under the <a href="https://github.com/PromptFerret/tools/blob/main/LICENSE" target="_blank">MIT License</a>.
     </p>
+  </div>
+</div>
 
-    <p>
-        Main site: 
-        <a href="https://promptferret.github.io/" target="_blank">
-            https://promptferret.github.io/
-        </a>
-    </p>
-
-    <p>
-        This project is licensed under the MIT License.
-    </p>
+<div class="footer">
+  <span><a href="https://promptferret.github.io">PromptFerret</a> &middot; <a href="https://github.com/PromptFerret/tools/blob/main/LICENSE" target="_blank">MIT License</a></span>
+  <span>Vibe coded with <a href="https://docs.anthropic.com/en/docs/claude-code" target="_blank">Claude Code</a></span>
+</div>
 
 </body>
 </html>
