@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SquishText | Compress & Share Text</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO -->
+    <meta name="description" content="Compress text into a shareable encoded string and decompress it back. No server, no accounts — runs entirely in your browser.">
+    <meta name="keywords" content="text compression, base64, deflate, share text, compress text, encode text, SquishText">
+    <meta name="author" content="PromptFerret">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="SquishText — Compress & Share Text">
+    <meta property="og:description" content="Compress text into a shareable encoded string. No server, no accounts — runs in your browser.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://promptferret.github.io/tools/squishtext/">
+
+<style>
+  :root {
+    --bg: #0f0f17;
+    --surface: #1a1a2e;
+    --surface2: #252545;
+    --accent: #7c5cbf;
+    --accent-hover: #9b7ed8;
+    --accent-glow: rgba(124, 92, 191, 0.25);
+    --text: #e8e6f0;
+    --text-muted: #8a8a9a;
+    --text-dim: #5a5a6a;
+    --border: #2a2a3e;
+    --success: #4ecb71;
+    --warning: #e0b055;
+    --error: #e05565;
+    --mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 1.5rem 2rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .header h1 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .header h1 span { color: var(--accent); }
+
+  .header .tagline {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .toolbar .sep {
+    width: 1px;
+    height: 1.5rem;
+    background: var(--border);
+    margin: 0 0.25rem;
+  }
+
+  button {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.15s;
+    background: var(--surface2);
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  button:hover { background: var(--accent); color: white; border-color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+  .btn-action {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    padding: 0.5rem 1.25rem;
+  }
+  .btn-action:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+  /* ── Status / Stats Bar ── */
+  #statusEl {
+    font-size: 0.75rem;
+    padding: 0.35rem 1.5rem;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    min-height: 1.6rem;
+  }
+  #statusEl:empty { display: none; }
+  #statusEl.error { color: var(--error); }
+  #statusEl.success { color: var(--success); }
+  #statusEl.warning { color: var(--warning); }
+
+  #statsBar {
+    font-size: 0.75rem;
+    padding: 0.35rem 1.5rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+  }
+  #statsBar:empty { display: none; }
+  #statsBar .stat-label { color: var(--text-dim); }
+  #statsBar .stat-value { color: var(--text-muted); }
+  #statsBar .stat-ratio { font-weight: 600; }
+  #statsBar .stat-ratio.smaller { color: var(--success); }
+  #statsBar .stat-ratio.similar { color: var(--warning); }
+  #statsBar .stat-ratio.larger { color: var(--error); }
+
+  /* ── Main Layout ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .panes {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+
+  .pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .pane + .pane {
+    border-left: 1px solid var(--border);
+  }
+
+  .pane-header {
+    padding: 0.4rem 1rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .pane-header button {
+    padding: 0.2rem 0.6rem;
+    font-size: 0.7rem;
+  }
+
+  textarea {
+    flex: 1;
+    width: 100%;
+    padding: 1rem 1.25rem;
+    border: none;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.55;
+    resize: none;
+    outline: none;
+  }
+
+  textarea::placeholder { color: var(--text-dim); }
+
+  .output-text {
+    flex: 1;
+    padding: 1rem 1.25rem;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.55;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    word-break: break-all;
+    min-height: 0;
+  }
+
+  .output-text.placeholder {
+    color: var(--text-dim);
+  }
+
+  /* ── Footer ── */
+  .footer {
+    padding: 0.4rem 1.5rem;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  /* ── Mobile viewport fix ── */
+  @supports (height: 100dvh) {
+    body { height: 100dvh; }
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .panes { flex-direction: column; }
+    .pane + .pane { border-left: none; border-top: 1px solid var(--border); }
+    .toolbar { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>Squish</span>Text</h1>
+  <p class="tagline">Compress text into a shareable string</p>
+</div>
+
+<div class="toolbar">
+  <button class="btn-action" id="squishBtn" onclick="doSquish()" disabled>Squish</button>
+  <button class="btn-action" id="unsquishBtn" onclick="doUnsquish()" disabled>Unsquish</button>
+  <div class="sep"></div>
+  <button id="copyBtn" onclick="copyOutput()" disabled>Copy</button>
+  <button id="clearBtn" onclick="clearAll()">Clear</button>
+</div>
+
+<div id="statusEl"></div>
+<div id="statsBar"></div>
+
+<div class="main">
+  <div class="panes">
+    <div class="pane">
+      <div class="pane-header">
+        <span>Input</span>
+        <button onclick="copyInput()" id="inputCopyBtn" disabled style="visibility:hidden">Copy</button>
+      </div>
+      <textarea id="inputArea" placeholder="Paste text to squish, or an encoded string to unsquish..." oninput="onInput()"></textarea>
+    </div>
+    <div class="pane">
+      <div class="pane-header">
+        <span>Output</span>
+        <button onclick="copyOutput()" id="paneCopyBtn" disabled style="visibility:hidden">Copy</button>
+      </div>
+      <div id="outputArea" class="output-text placeholder">Output will appear here.</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <span><a href="https://promptferret.github.io">PromptFerret</a> &middot; <a href="https://github.com/PromptFerret/tools/blob/main/LICENSE" target="_blank">MIT License</a> &middot; Vibe coded with <a href="https://docs.anthropic.com/en/docs/claude-code" target="_blank">Claude Code</a></span>
+  <span><a href="../">All Tools</a> &middot; Works offline (no server needed)</span>
+</div>
+
+<script>
+// ── State ──
+let outputText = '';
+const noSupport = typeof CompressionStream === 'undefined' || typeof DecompressionStream === 'undefined';
+const HEADER = '[SquishText] Expand at https://promptferret.github.io/tools/squishtext/\n';
+
+// ── Check browser support ──
+if (noSupport) {
+  setStatus('Your browser does not support CompressionStream. Please use a modern browser (Chrome 80+, Firefox 113+, Safari 16.4+).', 'error');
+}
+
+// ── Input Handler ──
+function onInput() {
+  const hasInput = !!document.getElementById('inputArea').value.trim();
+  document.getElementById('squishBtn').disabled = !hasInput || noSupport;
+  document.getElementById('unsquishBtn').disabled = !hasInput || noSupport;
+  document.getElementById('inputCopyBtn').disabled = !hasInput;
+  document.getElementById('inputCopyBtn').style.visibility = hasInput ? 'visible' : 'hidden';
+}
+
+// ── Compression ──
+async function compress(text) {
+  const encoder = new TextEncoder();
+  const stream = new Blob([encoder.encode(text)])
+    .stream()
+    .pipeThrough(new CompressionStream('deflate-raw'));
+  const blob = await new Response(stream).blob();
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+async function decompress(base64) {
+  // Strip header line if present
+  base64 = base64.replace(/^\[SquishText\][^\n]*\n?/, '');
+  base64 = base64.trim().replace(/[\r\n\s]/g, '');
+  base64 = base64.replace(/-/g, '+').replace(/_/g, '/');
+  while (base64.length % 4 !== 0) base64 += '=';
+
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  const stream = new Blob([bytes])
+    .stream()
+    .pipeThrough(new DecompressionStream('deflate-raw'));
+  const blob = await new Response(stream).blob();
+  return await blob.text();
+}
+
+// ── Actions ──
+async function doSquish() {
+  const input = document.getElementById('inputArea').value;
+  if (!input.trim()) return;
+
+  setButtons(false);
+  setStatus('Squishing...', 'loading');
+  document.getElementById('statsBar').innerHTML = '';
+
+  try {
+    const encoded = await compress(input);
+    const payload = HEADER + encoded;
+    outputText = payload;
+    showOutput(payload);
+    showStats(input.length, new TextEncoder().encode(input).length, payload.length);
+    setStatus('Squished!', 'success');
+    enableCopy();
+  } catch (e) {
+    setStatus('Compression failed: ' + e.message, 'error');
+    outputText = '';
+    showOutput('');
+  }
+
+  setButtons(true);
+}
+
+async function doUnsquish() {
+  const input = document.getElementById('inputArea').value;
+  if (!input.trim()) return;
+
+  setButtons(false);
+  setStatus('Unsquishing...', 'loading');
+  document.getElementById('statsBar').innerHTML = '';
+
+  try {
+    const decoded = await decompress(input);
+    outputText = decoded;
+    showOutput(decoded);
+    const cleanInput = input.trim().replace(/[\r\n\s]/g, '');
+    showStats(decoded.length, new TextEncoder().encode(decoded).length, cleanInput.length);
+    setStatus('Unsquished!', 'success');
+    enableCopy();
+  } catch (e) {
+    if (e instanceof DOMException || (e.message && e.message.includes('atob'))) {
+      setStatus('Invalid input \u2014 not a valid base64 string.', 'error');
+    } else {
+      setStatus('Decompression failed \u2014 this doesn\'t appear to be a SquishText payload.', 'error');
+    }
+    outputText = '';
+    showOutput('');
+  }
+
+  setButtons(true);
+}
+
+function setButtons(enabled) {
+  const hasInput = !!document.getElementById('inputArea').value.trim();
+  document.getElementById('squishBtn').disabled = !(enabled && hasInput);
+  document.getElementById('unsquishBtn').disabled = !(enabled && hasInput);
+}
+
+function enableCopy() {
+  document.getElementById('copyBtn').disabled = false;
+  document.getElementById('paneCopyBtn').disabled = false;
+  document.getElementById('paneCopyBtn').style.visibility = 'visible';
+}
+
+// ── Display ──
+function showOutput(text) {
+  const el = document.getElementById('outputArea');
+  if (text) {
+    el.textContent = text;
+    el.classList.remove('placeholder');
+  } else {
+    el.textContent = 'Output will appear here.';
+    el.classList.add('placeholder');
+  }
+}
+
+function showStats(charCount, byteCount, encodedLen) {
+  const bar = document.getElementById('statsBar');
+
+  const ratio = encodedLen / byteCount;
+  const pctChange = ((1 - ratio) * 100);
+  let ratioText, ratioClass;
+
+  if (pctChange > 5) {
+    ratioText = Math.round(pctChange) + '% smaller';
+    ratioClass = 'smaller';
+  } else if (pctChange < -5) {
+    ratioText = Math.round(-pctChange) + '% larger';
+    ratioClass = 'larger';
+  } else {
+    ratioText = 'about the same size';
+    ratioClass = 'similar';
+  }
+
+  bar.innerHTML =
+    '<span><span class="stat-label">Original: </span><span class="stat-value">' + charCount.toLocaleString() + ' chars / ' + byteCount.toLocaleString() + ' bytes</span></span>' +
+    '<span><span class="stat-label">Encoded: </span><span class="stat-value">' + encodedLen.toLocaleString() + ' chars</span></span>' +
+    '<span class="stat-ratio ' + ratioClass + '">' + ratioText + '</span>';
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('statusEl');
+  el.textContent = msg;
+  el.className = type || '';
+}
+
+// ── Copy ──
+async function copyInput() {
+  const text = document.getElementById('inputArea').value;
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    setStatus('Input copied to clipboard!', 'success');
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    setStatus('Input copied to clipboard!', 'success');
+  }
+}
+
+async function copyOutput() {
+  if (!outputText) return;
+  try {
+    await navigator.clipboard.writeText(outputText);
+    setStatus('Copied to clipboard!', 'success');
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = outputText;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    setStatus('Copied to clipboard!', 'success');
+  }
+}
+
+// ── Clear ──
+function clearAll() {
+  document.getElementById('inputArea').value = '';
+  outputText = '';
+  showOutput('');
+  document.getElementById('statsBar').innerHTML = '';
+  document.getElementById('statusEl').textContent = '';
+  document.getElementById('squishBtn').disabled = true;
+  document.getElementById('unsquishBtn').disabled = true;
+  document.getElementById('copyBtn').disabled = true;
+  document.getElementById('inputCopyBtn').disabled = true;
+  document.getElementById('inputCopyBtn').style.visibility = 'hidden';
+  document.getElementById('paneCopyBtn').disabled = true;
+  document.getElementById('paneCopyBtn').style.visibility = 'hidden';
+}
+</script>
+
+</body>
+</html>
