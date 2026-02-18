@@ -315,6 +315,19 @@ function onInput() {
   document.getElementById('inputCopyBtn').style.visibility = hasInput ? 'visible' : 'hidden';
 }
 
+// ── CRC32 ──
+const crcTable = new Uint32Array(256);
+for (let i = 0; i < 256; i++) {
+  let c = i;
+  for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+  crcTable[i] = c;
+}
+function crc32(str) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < str.length; i++) crc = crcTable[(crc ^ str.charCodeAt(i)) & 0xFF] ^ (crc >>> 8);
+  return ((crc ^ 0xFFFFFFFF) >>> 0).toString(16).padStart(8, '0');
+}
+
 // ── Compression ──
 async function compress(text) {
   const encoder = new TextEncoder();
@@ -328,7 +341,8 @@ async function compress(text) {
   for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
-  return btoa(binary);
+  const b64 = btoa(binary);
+  return b64 + '.' + crc32(b64);
 }
 
 async function decompress(base64) {
@@ -336,6 +350,18 @@ async function decompress(base64) {
   base64 = base64.replace(/^\[SquishText\][^\n]*\n?/, '');
   base64 = base64.trim().replace(/[\r\n\s]/g, '');
   base64 = base64.replace(/-/g, '+').replace(/_/g, '/');
+
+  // Check for CRC32 checksum (format: base64data.8hexchars)
+  const dotIdx = base64.lastIndexOf('.');
+  if (dotIdx > 0 && base64.length - dotIdx - 1 === 8) {
+    const data = base64.slice(0, dotIdx);
+    const checksum = base64.slice(dotIdx + 1).toLowerCase();
+    if (crc32(data) !== checksum) {
+      throw new Error('CHECKSUM_MISMATCH');
+    }
+    base64 = data;
+  }
+
   while (base64.length % 4 !== 0) base64 += '=';
 
   const binary = atob(base64);
@@ -395,7 +421,9 @@ async function doUnsquish() {
     setStatus('Unsquished!', 'success');
     enableCopy();
   } catch (e) {
-    if (e instanceof DOMException || (e.message && e.message.includes('atob'))) {
+    if (e.message === 'CHECKSUM_MISMATCH') {
+      setStatus('Checksum failed \u2014 this payload has been corrupted or modified.', 'error');
+    } else if (e instanceof DOMException || (e.message && e.message.includes('atob'))) {
       setStatus('Invalid input \u2014 not a valid base64 string.', 'error');
     } else {
       setStatus('Decompression failed \u2014 this doesn\'t appear to be a SquishText payload.', 'error');
@@ -557,7 +585,11 @@ function clearAll() {
     setStatus('Unsquished from shared link!', 'success');
     enableCopy();
   } catch (e) {
-    setStatus('Failed to decode link — invalid or corrupted payload.', 'error');
+    if (e.message === 'CHECKSUM_MISMATCH') {
+      setStatus('Link payload corrupted \u2014 checksum does not match.', 'error');
+    } else {
+      setStatus('Failed to decode link \u2014 invalid or corrupted payload.', 'error');
+    }
   }
 })();
 </script>
