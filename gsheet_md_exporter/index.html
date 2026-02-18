@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GSheet D&D Character Exporter | Markdown & JSON for AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Primary SEO -->
+    <meta name="description" content="Export Google Sheets D&D character sheets to clean Markdown or JSON for AI workflows, chatbots, and structured analysis. Built for AI-assisted D&D planning and optimization.">
+    <meta name="keywords" content="D&D character exporter, Google Sheets D&D, DnD AI tools, character sheet to JSON, character sheet to markdown, AI D&D workflow, Avrae character sheet export">
+    <meta name="author" content="PromptFerret">
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://promptferret.github.io/tools/gsheet_md_exporter/">
+
+    <!-- Open Graph (for link previews) -->
+    <meta property="og:title" content="GSheet D&D Character Exporter">
+    <meta property="og:description" content="Convert Google Sheets D&D character sheets into AI-friendly Markdown or JSON.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://promptferret.github.io/tools/gsheet_md_exporter/">
+
+    <!-- Optional: Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="GSheet D&D Character Exporter">
+    <meta name="twitter:description" content="Export Google Sheets D&D characters to Markdown or JSON for AI workflows.">
+<style>
+  :root {
+    --bg: #0f0f17;
+    --surface: #1a1a2e;
+    --surface2: #252545;
+    --accent: #7c5cbf;
+    --accent-hover: #9b7ed8;
+    --accent-glow: rgba(124, 92, 191, 0.25);
+    --text: #e8e6f0;
+    --text-muted: #8a8a9a;
+    --text-dim: #5a5a6a;
+    --border: #2a2a3e;
+    --success: #4ecb71;
+    --error: #e05565;
+    --mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 1.5rem 2rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .header h1 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .header h1 span { color: var(--accent); }
+
+  .header .tagline {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .toolbar input[type="text"] {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-family: var(--mono);
+    transition: border-color 0.2s;
+  }
+
+  .toolbar input[type="text"]::placeholder { color: var(--text-dim); }
+  .toolbar input[type="text"]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+
+  .toolbar .sep {
+    width: 1px;
+    height: 1.5rem;
+    background: var(--border);
+    margin: 0 0.25rem;
+  }
+
+  button {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.15s;
+    background: var(--surface2);
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  button:hover { background: var(--accent); color: white; border-color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+  .btn-fetch {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    padding: 0.5rem 1.25rem;
+  }
+  .btn-fetch:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+  .btn-toggle.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  /* ── Status Bar ── */
+  #statusEl {
+    font-size: 0.75rem;
+    padding: 0.35rem 1.5rem;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    min-height: 1.6rem;
+  }
+  #statusEl:empty { display: none; }
+  #statusEl.error { color: var(--error); }
+  #statusEl.success { color: var(--success); }
+  #statusEl.loading { color: var(--text-muted); }
+
+  /* ── Sheet Tabs ── */
+  #sheetTabs {
+    display: none;
+    padding: 0.4rem 1.5rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+  }
+  #sheetTabs:empty { display: none; }
+  #sheetTabs .tab-label {
+    color: var(--text-dim);
+    font-weight: 600;
+    margin-right: 0.25rem;
+  }
+  #sheetTabs .tab {
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+  }
+  #sheetTabs .tab.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+  #sheetTabs .tab.ignored {
+    opacity: 0.35;
+  }
+
+  /* ── Output ── */
+  .output-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  #output {
+    flex: 1;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-y: auto;
+    border: none;
+  }
+
+  #output.placeholder {
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    white-space: pre-wrap;
+  }
+
+  #output.code {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  /* ── Preview Mode Styles ── */
+  #output.preview {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    white-space: normal;
+    word-wrap: normal;
+  }
+
+  #output.preview h1 {
+    font-size: 1.6rem;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.75rem;
+  }
+
+  #output.preview h2 {
+    font-size: 1.15rem;
+    color: var(--text);
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.25rem;
+  }
+
+  #output.preview h3 {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    margin-top: 1rem;
+    margin-bottom: 0.35rem;
+  }
+
+  #output.preview p {
+    margin: 0.4rem 0;
+  }
+
+  #output.preview table {
+    border-collapse: collapse;
+    margin: 0.4rem 0;
+    width: auto;
+  }
+
+  #output.preview th,
+  #output.preview td {
+    border: 1px solid var(--border);
+    padding: 0.3rem 0.6rem;
+    font-size: 0.82rem;
+    text-align: left;
+  }
+
+  #output.preview th {
+    background: var(--surface2);
+    font-weight: 600;
+  }
+
+  #output.preview td:empty { padding: 0.3rem 0.6rem; }
+
+  #output.preview ul {
+    margin: 0.3rem 0 0.3rem 1.5rem;
+    padding: 0;
+  }
+
+  #output.preview li {
+    margin: 0.15rem 0;
+    font-size: 0.85rem;
+  }
+
+  #output.preview strong { color: var(--accent-hover); }
+
+  /* ── Footer ── */
+  .footer {
+    padding: 0.4rem 1.5rem;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>GSheet</span> D&D Character Exporter</h1>
+  <p class="tagline">Google Sheets D&D 5e to Markdown & JSON for AI</p>
+</div>
+
+<div class="toolbar">
+  <input type="text" id="urlInput" placeholder="Paste public Google Sheet URL..." />
+  <button class="btn-fetch" id="fetchBtn" onclick="fetchSheet()">Fetch</button>
+  <div class="sep"></div>
+  <button class="btn-toggle active" id="btnPreview" onclick="setFormat('preview')">Preview</button>
+  <button class="btn-toggle" id="btnMd" onclick="setFormat('markdown')">MD</button>
+  <button class="btn-toggle" id="btnJson" onclick="setFormat('json')">JSON</button>
+  <div class="sep"></div>
+  <button onclick="copyOutput()">Copy</button>
+</div>
+
+<div id="statusEl"></div>
+<div id="sheetTabs"></div>
+
+<div class="output-area">
+  <div id="output" class="placeholder">Paste a Google Sheet URL and click Fetch to export your character sheet.</div>
+</div>
+
+<div class="footer">
+  <span><a href="https://promptferret.github.io" style="color:var(--accent);text-decoration:none">PromptFerret</a> &middot; <a href="https://github.com/PromptFerret/tools/blob/main/LICENSE" style="color:var(--accent);text-decoration:none" target="_blank">MIT License</a> &middot; Vibe coded with <a href="https://docs.anthropic.com/en/docs/claude-code" style="color:var(--accent);text-decoration:none" target="_blank">Claude Code</a></span>
+  <span><a href="https://docs.google.com/spreadsheets/d/1etrBJ0qCDXACovYHUM4XvjE0erndThwRLcUQzX6ts8w/edit?gid=1750226729#gid=1750226729" style="color:var(--accent);text-decoration:none" target="_blank">D&amp;D 5e GSheet v1.4</a> &middot; Requires HTTP server (not file://)</span>
+</div>
+
+<script>
+// ── State ──
+let currentFormat = 'preview';
+let characterData = null;
+let cachedMarkdown = '';
+let discoveredTabs = [];
+
+// ── UI Helpers ──
+function setStatus(msg, type) {
+  const el = document.getElementById('statusEl');
+  el.textContent = msg;
+  el.className = type || '';
+}
+
+function setFormat(fmt) {
+  currentFormat = fmt;
+  document.getElementById('btnPreview').classList.toggle('active', fmt === 'preview');
+  document.getElementById('btnMd').classList.toggle('active', fmt === 'markdown');
+  document.getElementById('btnJson').classList.toggle('active', fmt === 'json');
+  if (characterData) renderOutput();
+}
+
+function copyOutput() {
+  // Always copy the markdown text, even when viewing preview
+  const text = currentFormat === 'json' ? renderJSON(characterData) : cachedMarkdown;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    setStatus('Copied ' + (currentFormat === 'json' ? 'JSON' : 'Markdown') + ' to clipboard!', 'success');
+    setTimeout(() => { if (document.getElementById('statusEl').textContent.includes('clipboard')) document.getElementById('statusEl').textContent = ''; }, 1500);
+  });
+}
+
+// ── URL Parsing ──
+function parseSheetUrl(url) {
+  const idMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (!idMatch) return null;
+  const sheetId = idMatch[1];
+  const gidMatch = url.match(/[?&#]gid=(\d+)/);
+  const gid = gidMatch ? gidMatch[1] : '0';
+  return { sheetId, gid };
+}
+
+// ── CSV Parser ──
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  let i = 0;
+
+  while (i < text.length) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < text.length && text[i + 1] === '"') {
+          field += '"';
+          i += 2;
+        } else {
+          inQuotes = false;
+          i++;
+        }
+      } else {
+        field += ch;
+        i++;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+        i++;
+      } else if (ch === ',') {
+        row.push(field);
+        field = '';
+        i++;
+      } else if (ch === '\r') {
+        i++;
+      } else if (ch === '\n') {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+        i++;
+      } else {
+        field += ch;
+        i++;
+      }
+    }
+  }
+  // Last field/row
+  if (field || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
+
+// ── Discover Sheet Tabs via /htmlview ──
+function discoverTabs(sheetId) {
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/htmlview`;
+  return fetch(url)
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.text();
+    })
+    .then(html => {
+      const tabs = [];
+      const re = /name:\s*"([^"]*)",\s*pageUrl:[^}]*gid:\s*"(\d+)"/g;
+      let m;
+      while ((m = re.exec(html)) !== null) {
+        // Unescape JS string escapes (e.g. \x27 → ', \x22 → ", \\ → \)
+        const name = m[1].replace(/\\x([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+                         .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+                         .replace(/\\\\/g, '\\');
+        tabs.push({ name, gid: m[2] });
+      }
+      return tabs;
+    });
+}
+
+// Tab descriptions for tooltips
+const TAB_INFO = {
+  'v4.0':              'Main character sheet (v4.0 layout)',
+  'Additional':        'Extended attacks, spells, multiclass, defenses',
+  'Inventory':         'Currency, wealth, and item list',
+  'Spell Preparation': 'Spell preparation management'
+};
+const IGNORED_TABS = new Set(['?', 'Attack Info', 'Gear Info', 'Race Info', 'Class Info']);
+const IGNORED_TOOLTIP = 'Internal sheet data — not processed';
+
+// Detect if an unknown tab matches a known structure by checking row 1 headers
+function detectTabType(rows) {
+  // Inventory-type: row 1 has # at col 8, ITEM at col 9, COST at col 17, WEIGHT at col 20
+  const isInventory = cell(rows, 1, 8) === '#' &&
+                      cell(rows, 1, 9) === 'ITEM' &&
+                      cell(rows, 1, 17) === 'COST' &&
+                      cell(rows, 1, 20) === 'WEIGHT';
+  if (isInventory) return 'inventory';
+
+  // Additional-type: row 1 has NAME at col 1, ATK BONUS at col 8, DAMAGE/TYPE at col 12
+  const isAdditional = cell(rows, 1, 1) === 'NAME' &&
+                       cell(rows, 1, 8) === 'ATK BONUS' &&
+                       cell(rows, 1, 12) === 'DAMAGE/TYPE';
+  if (isAdditional) return 'additional';
+
+  return null;
+}
+
+function renderTabs(tabs, usedNames, detectedTypes) {
+  const el = document.getElementById('sheetTabs');
+  if (!tabs.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = 'flex';
+  const used = new Set(usedNames || []);
+  const detected = detectedTypes || {};
+  el.innerHTML = '<span class="tab-label">Sheets:</span>' +
+    tabs.map(t => {
+      const isUsed = used.has(t.name);
+      let info = TAB_INFO[t.name];
+      // For auto-detected custom tabs, build a tooltip from the detected type
+      if (!info && detected[t.name]) {
+        const dtype = detected[t.name];
+        if (dtype === 'inventory') info = 'Inventory container (auto-detected)';
+        else if (dtype === 'additional') info = 'Additional data (auto-detected)';
+      }
+      const isIgnored = !info && IGNORED_TABS.has(t.name);
+      const cls = isUsed ? ' active' : (isIgnored || (!info && !detected[t.name]) ? ' ignored' : '');
+      const tooltip = info || IGNORED_TOOLTIP;
+      return `<span class="tab${cls}" title="${tooltip}">${t.name}</span>`;
+    }).join('');
+}
+
+// ── Fetch via direct CSV export ──
+async function fetchCsv(sheetId, gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+  return parseCSV(await r.text());
+}
+
+async function fetchExtraTabs(sheetId, template, tabs) {
+  const knownNames = new Set([
+    tabs[0]?.name,
+    template.additionalTab?.name,
+    template.inventoryTab?.name,
+    'Spell Preparation',
+    ...IGNORED_TABS
+  ]);
+
+  const fetches = [];
+  const keys = [];
+
+  // Known tabs: Additional, Inventory
+  for (const tabDef of [template.additionalTab, template.inventoryTab]) {
+    const key = tabDef === template.additionalTab ? 'additional' : 'inventory';
+    keys.push(key);
+    if (!tabDef) { fetches.push(Promise.resolve(null)); continue; }
+    const tab = tabs.find(t => t.name === tabDef.name);
+    if (!tab) { fetches.push(Promise.resolve(null)); continue; }
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${tab.gid}`;
+    fetches.push(fetch(url).then(r => r.ok ? r.text() : null));
+  }
+
+  // Spell Preparation tab
+  keys.push('spellPrep');
+  const spellPrepTab = tabs.find(t => t.name === 'Spell Preparation');
+  if (spellPrepTab) {
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${spellPrepTab.gid}`;
+    fetches.push(fetch(url).then(r => r.ok ? r.text() : null));
+  } else {
+    fetches.push(Promise.resolve(null));
+  }
+
+  // Unknown/custom tabs
+  const customTabs = tabs.filter(t => !knownNames.has(t.name));
+  for (const tab of customTabs) {
+    keys.push(`custom:${tab.name}`);
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${tab.gid}`;
+    fetches.push(fetch(url).then(r => r.ok ? r.text() : null));
+  }
+
+  const results = await Promise.all(fetches);
+  return {
+    addCsv: results[0],
+    invCsv: results[1],
+    spellPrepCsv: results[2],
+    customCsvs: results.slice(3),
+    customTabs
+  };
+}
+
+function integrateSpellPrep(d, spellPrepCsv) {
+  if (!spellPrepCsv) return false;
+  const spellPrepRows = parseCSV(spellPrepCsv);
+  const spellPrepData = extractSpellPreparation(spellPrepRows);
+  if (!spellPrepData || !hasSpellData(spellPrepData)) return false;
+
+  d.cantrips = spellPrepData.cantrips;
+  d.additionalCantrips = null;
+  for (const [lvl, spells] of Object.entries(spellPrepData.spells)) {
+    if (d.spells[lvl]) {
+      d.spells[lvl].spells = spells;
+    } else {
+      d.spells[lvl] = { spells, maxSlots: '0', curSlots: '' };
+    }
+  }
+  d.spellSource = 'spell_prep';
+  return true;
+}
+
+function processCustomTabs(d, customTabs, customCsvs, template) {
+  const detectedTypes = {};
+  const usedNames = [];
+  d.extraInventories = [];
+
+  for (let i = 0; i < customTabs.length; i++) {
+    const csv = customCsvs[i];
+    if (!csv) continue;
+    const rows = parseCSV(csv);
+    const tabType = detectTabType(rows);
+    if (!tabType) continue;
+
+    detectedTypes[customTabs[i].name] = tabType;
+    usedNames.push(customTabs[i].name);
+
+    if (tabType === 'additional') {
+      extractAdditional(d, rows, template.additionalTab);
+    } else if (tabType === 'inventory') {
+      const container = { name: customTabs[i].name };
+      extractInventory(container, rows, template.inventoryTab);
+      d.extraInventories.push(container);
+    }
+  }
+  return { detectedTypes, usedNames };
+}
+
+function assembleCharacterData(mainRows, template, extra) {
+  const d = extract(mainRows, template);
+  const usedTabs = [discoveredTabs[0]?.name];
+  const detectedTypes = {};
+
+  if (extra.addCsv && template.additionalTab) {
+    extractAdditional(d, parseCSV(extra.addCsv), template.additionalTab);
+    usedTabs.push(template.additionalTab.name);
+  }
+  if (extra.invCsv && template.inventoryTab) {
+    extractInventory(d, parseCSV(extra.invCsv), template.inventoryTab);
+    usedTabs.push(template.inventoryTab.name);
+  }
+
+  if (integrateSpellPrep(d, extra.spellPrepCsv)) {
+    usedTabs.push('Spell Preparation');
+  }
+
+  const custom = processCustomTabs(d, extra.customTabs, extra.customCsvs, template);
+  usedTabs.push(...custom.usedNames);
+  Object.assign(detectedTypes, custom.detectedTypes);
+
+  return { data: d, usedTabs, detectedTypes };
+}
+
+async function loadCharacterData(parsed) {
+  setStatus('Discovering sheet tabs...', 'loading');
+  const tabs = await discoverTabs(parsed.sheetId);
+  discoveredTabs = tabs;
+  const mainGid = tabs.length > 0 ? tabs[0].gid : parsed.gid;
+  renderTabs(tabs);
+
+  setStatus('Fetching main sheet...', 'loading');
+  const mainRows = await fetchCsv(parsed.sheetId, mainGid);
+
+  let template = detectTemplate(mainRows);
+  if (!template) {
+    template = TEMPLATES.dnd_5e_v40;
+    setStatus('Unknown template — using default v4.0 layout as fallback. Some fields may be wrong.', 'loading');
+  }
+
+  setStatus('Fetching extra sheets...', 'loading');
+  const extra = await fetchExtraTabs(parsed.sheetId, template, tabs);
+
+  return assembleCharacterData(mainRows, template, extra);
+}
+
+async function fetchSheet() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) { setStatus('Please enter a Google Sheet URL.', 'error'); return; }
+
+  const parsed = parseSheetUrl(url);
+  if (!parsed) { setStatus('Invalid Google Sheet URL format.', 'error'); return; }
+
+  const fetchBtn = document.getElementById('fetchBtn');
+  fetchBtn.disabled = true;
+
+  try {
+    const result = await loadCharacterData(parsed);
+    if (!result) return;
+
+    characterData = result.data;
+    renderTabs(discoveredTabs, result.usedTabs, result.detectedTypes);
+    renderOutput();
+    setStatus(`Exported "${characterData.name || 'character'}" successfully!`, 'success');
+  } catch (err) {
+    setStatus('Fetch failed: ' + err.message + ' — Make sure the sheet is public and this page is served via HTTP.', 'error');
+  } finally {
+    fetchBtn.disabled = false;
+  }
+}
+
+// ── Cell Helpers ──
+function cell(rows, r, c) {
+  if (r < 0 || r >= rows.length) return '';
+  if (c < 0 || c >= rows[r].length) return '';
+  return (rows[r][c] || '').trim();
+}
+
+function cellNum(rows, r, c) {
+  const v = cell(rows, r, c).replace(/[^0-9.\-+]/g, '');
+  return v === '' ? null : Number(v);
+}
+
+// Escape a string for use inside a markdown table cell
+function mdEsc(v) {
+  if (!v) return '—';
+  return v.replace(/\|/g, ' — ').replace(/\n/g, ' ').trim();
+}
+
+// ── Extraction Helpers ──
+// Scan a single column for non-empty values, excluding label rows
+function scanColumn(rows, startRow, endRow, col, excludeLabels = []) {
+  const exclude = new Set(excludeLabels);
+  const result = [];
+  for (let r = startRow; r <= endRow; r++) {
+    const v = cell(rows, r, col);
+    if (v && !exclude.has(v)) result.push(v);
+  }
+  return result;
+}
+
+// Scan a grid of columns across rows (for cantrips etc.)
+function scanGrid(rows, startRow, endRow, cols) {
+  const result = [];
+  for (let r = startRow; r <= endRow; r++) {
+    for (const c of cols) {
+      const v = cell(rows, r, c);
+      if (v) result.push(v);
+    }
+  }
+  return result;
+}
+
+// Scan spell levels from marker/name column pairs
+function scanSpells(rows, spellDefs) {
+  const result = {};
+  for (const sp of spellDefs) {
+    const spellsAtLevel = [];
+    for (let r = sp.startRow; r < sp.startRow + sp.rows; r++) {
+      for (const [markerCol, nameCol] of sp.cols) {
+        const name = cell(rows, r, nameCol);
+        if (name) {
+          const marker = cell(rows, r, markerCol);
+          spellsAtLevel.push({ name, prepared: marker === '◉' });
+        }
+      }
+    }
+    const maxSlots = sp.maxSlots ? cell(rows, ...sp.maxSlots) : null;
+    const curSlots = sp.curSlots ? cell(rows, ...sp.curSlots) : null;
+    if (spellsAtLevel.length > 0 || maxSlots) {
+      result[sp.level] = { spells: spellsAtLevel, maxSlots: maxSlots || '0', curSlots: curSlots || '' };
+    }
+  }
+  return result;
+}
+
+// Merge source spell data into target (mutates target)
+function mergeSpells(target, source) {
+  for (const [lvl, data] of Object.entries(source)) {
+    if (target[lvl]) {
+      target[lvl].spells.push(...data.spells);
+    } else {
+      target[lvl] = { spells: data.spells, maxSlots: data.maxSlots, curSlots: data.curSlots };
+    }
+  }
+}
+
+// ── Template Position Maps (CSV-based) ──
+// All positions verified against marker sheet CSV export.
+// Row/Col are 0-indexed from the raw CSV.
+
+// Tabs NOT processed (backend/reference data used by sheet formulas):
+// ?, Attack Info, Gear Info, Race Info, Class Info
+
+const TEMPLATES = {
+  dnd_5e_v40: {
+    name: "D&D 5e Gsheet v4.0",
+    detect: [1, 19, "Gsheet 4.0"],
+
+    charName:          [5, 2],
+    classLevel:        [4, 19],
+    race:              [6, 19],
+    playerName:        [4, 30],
+    background:        [10, 35],
+    alignment:         [27, 35],
+
+    ac:                [11, 17],
+    initiative:        [11, 21],
+    speed:             [11, 25],
+    inspiration:       [10, 7],
+    hpMax:             [15, 20],
+    currentHp:         [16, 17],
+    tempHp:            [20, 17],
+    condition:         [19, 20],
+    hitDice:           [24, 17],
+    profBonus:         [13, 7],
+    passivePerception: [44, 2],
+
+    // Abilities: [key, scoreRow, modRow] — all at col 2
+    abilities: [
+      ["STR", 14, 12],
+      ["DEX", 19, 17],
+      ["CON", 24, 22],
+      ["INT", 29, 27],
+      ["WIS", 34, 32],
+      ["CHA", 39, 37]
+    ],
+
+    saves:  { rows: [16, 21], profCol: 7, modCol: 8, nameCol: 9 },
+    skills: { rows: [24, 41], profCol: 7, modCol: 8, nameCol: 9 },
+
+    attacks: {
+      rows: [31, 35], nameCol: 17, bonusCol: 24, damageCol: 28,
+      extraRows: [36, 41]
+    },
+
+    languages: { rows: [44, 55], col: 17 },
+    equipment: { rows: [44, 55], col: 28 },
+
+    proficiencies: { rows: [48, 54], labelCol: 2, valueCol: 8 },
+
+    personality: {
+      col: 30,
+      traits: [11, 12, 13],
+      ideals: [15, 16, 17],
+      bonds:  [19, 20, 21],
+      flaws:  [23, 24, 25]
+    },
+
+    features: { rows: [58, 83], cols: [2, 15, 28] },
+
+    spellcasting: {
+      class:       [90, 2],
+      ability:     [90, 20],
+      saveDC:      [90, 27],
+      attackBonus: [90, 34]
+    },
+
+    cantrips: { rows: [95, 97], cols: [13, 23, 33] },
+
+    // Each spell level: marker/name col pairs, slot positions
+    spells: [
+      { level: 1, startRow: 99,  rows: 5, cols: [[2,3],[12,13],[22,23]],  maxSlots: [100,36], curSlots: [100,32] },
+      { level: 2, startRow: 105, rows: 5, cols: [[12,13],[22,23],[32,33]], maxSlots: [106,4],  curSlots: [106,8]  },
+      { level: 3, startRow: 111, rows: 5, cols: [[2,3],[12,13],[22,23]],  maxSlots: [112,36], curSlots: [112,32] },
+      { level: 4, startRow: 117, rows: 4, cols: [[12,13],[22,23],[32,33]], maxSlots: [118,4],  curSlots: [118,8]  },
+      { level: 5, startRow: 122, rows: 4, cols: [[2,3],[12,13],[22,23]],  maxSlots: [123,36], curSlots: [123,32] },
+      { level: 6, startRow: 127, rows: 4, cols: [[12,13],[22,23],[32,33]], maxSlots: [128,4],  curSlots: [128,8]  },
+      { level: 7, startRow: 132, rows: 3, cols: [[2,3],[12,13],[22,23]],  maxSlots: [133,36], curSlots: [133,32] },
+      { level: 8, startRow: 136, rows: 3, cols: [[12,13],[22,23],[32,33]], maxSlots: [137,4],  curSlots: [137,8]  },
+      { level: 9, startRow: 140, rows: 3, cols: [[2,3],[12,13],[22,23]],  maxSlots: [141,36], curSlots: [141,32] }
+    ],
+
+    physical: {
+      age: [147, 2], height: [147, 5], weight: [147, 8], size: [147, 11],
+      gender: [149, 2], eyes: [149, 5], hair: [149, 8], skin: [149, 11]
+    },
+
+    allies:    { rows: [146, 161], col: 17 },
+    backstory: { rows: [164, 176], col: 17 },
+
+    characterImage: [154, 2],
+    appearanceUrl:  [175, 2],
+    symbolUrl:      [175, 8],
+
+    // ── Additional Tab Position Map ──
+    additionalTab: {
+      name: 'Additional',
+
+      attacks: {
+        rows: [2, 12],
+        left:  { nameCol: 1, bonusCol: 8, damageCol: 12 },
+        right: { nameCol: 22, bonusCol: 29, damageCol: 33 }
+      },
+
+      cantrips: { rows: [16, 18], cols: [[12,13],[22,23],[32,33]] },
+
+      spells: [
+        { level: 1, startRow: 20, rows: 5, cols: [[2,3],[12,13],[22,23]] },
+        { level: 2, startRow: 26, rows: 5, cols: [[12,13],[22,23],[32,33]] },
+        { level: 3, startRow: 32, rows: 5, cols: [[2,3],[12,13],[22,23]] },
+        { level: 4, startRow: 38, rows: 4, cols: [[12,13],[22,23],[32,33]] },
+        { level: 5, startRow: 43, rows: 4, cols: [[2,3],[12,13],[22,23]] },
+        { level: 6, startRow: 48, rows: 4, cols: [[12,13],[22,23],[32,33]] },
+        { level: 7, startRow: 53, rows: 3, cols: [[2,3],[12,13],[22,23]] },
+        { level: 8, startRow: 57, rows: 3, cols: [[12,13],[22,23],[32,33]] },
+        { level: 9, startRow: 61, rows: 3, cols: [[2,3],[12,13],[22,23]] }
+      ],
+
+      classes: { rows: [68, 77], classCol: 2, levelCol: 13 },
+      totalLevel: [78, 13],
+
+      resistances:     { rows: [68, 78], col: 19 },
+      immunities:      { rows: [68, 78], col: 27 },
+      vulnerabilities: { rows: [68, 78], col: 34 }
+    },
+
+    // ── Inventory Tab Position Map ──
+    inventoryTab: {
+      name: 'Inventory',
+
+      currency: {
+        copper:   [2, 3],
+        silver:   [5, 3],
+        electrum: [8, 3],
+        gold:     [11, 3],
+        platinum: [14, 3]
+      },
+      coinValue:  [18, 4],
+      wealth:     [19, 3],
+      maxWeight:  [23, 4],
+      weight:     [24, 3],
+
+      items: {
+        rows: [2, 75],
+        left:  { qtyCol: 8, nameCol: 9, costCol: 17, weightCol: 20 },
+        right: { qtyCol: 25, nameCol: 26, costCol: 34, weightCol: 37 }
+      }
+    }
+  }
+};
+
+// ── D&D Game Knowledge (not template-specific) ──
+const SKILL_ABILITIES = {
+  'Acrobatics': 'DEX', 'Animal Handling': 'WIS', 'Arcana': 'INT',
+  'Athletics': 'STR', 'Deception': 'CHA', 'History': 'INT',
+  'Insight': 'WIS', 'Intimidation': 'CHA', 'Investigation': 'INT',
+  'Medicine': 'WIS', 'Nature': 'INT', 'Perception': 'WIS',
+  'Performance': 'CHA', 'Persuasion': 'CHA', 'Religion': 'INT',
+  'Sleight of Hand': 'DEX', 'Stealth': 'DEX', 'Survival': 'WIS'
+};
+
+// ── Template Detection ──
+function detectTemplate(rows) {
+  for (const tmpl of Object.values(TEMPLATES)) {
+    const [r, c, substr] = tmpl.detect;
+    if (cell(rows, r, c).includes(substr)) return tmpl;
+  }
+  return null;
+}
+
+// ── Extract Character Data ──
+function extract(rows, map) {
+  const d = {};
+
+  // Basic Info
+  d.name = cell(rows, ...map.charName);
+  d.classLevel = cell(rows, ...map.classLevel);
+  d.race = cell(rows, ...map.race);
+  d.player = cell(rows, ...map.playerName);
+  d.background = cell(rows, ...map.background);
+  d.alignment = cell(rows, ...map.alignment);
+
+  // Combat Stats
+  d.ac = cell(rows, ...map.ac);
+  d.initiative = cell(rows, ...map.initiative);
+  d.speed = cell(rows, ...map.speed);
+  d.inspiration = cell(rows, ...map.inspiration);
+  d.hpMax = cell(rows, ...map.hpMax);
+  d.currentHp = cell(rows, ...map.currentHp);
+  d.tempHp = cell(rows, ...map.tempHp);
+  d.condition = cell(rows, ...map.condition);
+  d.hitDice = cell(rows, ...map.hitDice);
+  d.profBonus = cell(rows, ...map.profBonus);
+  d.passivePerception = cell(rows, ...map.passivePerception);
+
+  // Ability Scores — map entries are [key, scoreRow, modRow], all at col 2
+  const profBonusNum = parseInt(d.profBonus) || 0;
+  d.abilities = [];
+  for (const [key, scoreRow, modRow] of map.abilities) {
+    d.abilities.push({
+      key,
+      score: cell(rows, scoreRow, 2),
+      modifier: cell(rows, modRow, 2)
+    });
+  }
+
+  // Saving Throws — ◉ = proficient, 〇 = not
+  const sv = map.saves;
+  d.saves = [];
+  for (let r = sv.rows[0]; r <= sv.rows[1]; r++) {
+    const name = cell(rows, r, sv.nameCol);
+    if (!name) continue;
+    const prof = cell(rows, r, sv.profCol);
+    d.saves.push({
+      name,
+      modifier: cell(rows, r, sv.modCol),
+      proficient: prof === '◉'
+    });
+  }
+
+  // Skills — ◉ marker readable; use math to distinguish Proficient vs Expertise
+  const sk = map.skills;
+  d.skills = [];
+  for (let r = sk.rows[0]; r <= sk.rows[1]; r++) {
+    const name = cell(rows, r, sk.nameCol);
+    if (!name) continue;
+    const mod = cell(rows, r, sk.modCol);
+    const prof = cell(rows, r, sk.profCol);
+    const modNum = parseInt(mod) || 0;
+
+    let proficiency = '';
+    if (prof === '◉' && profBonusNum > 0) {
+      const abilityKey = SKILL_ABILITIES[name];
+      const ab = abilityKey && d.abilities.find(a => a.key === abilityKey);
+      const abMod = ab ? (parseInt(ab.modifier) || 0) : 0;
+      proficiency = (modNum >= abMod + profBonusNum * 2) ? 'Expertise' : 'Proficient';
+    }
+    d.skills.push({ name, modifier: mod, proficiency });
+  }
+
+  // Attacks
+  const atk = map.attacks;
+  d.attacks = [];
+  for (let r = atk.rows[0]; r <= atk.rows[1]; r++) {
+    const name = cell(rows, r, atk.nameCol);
+    if (name) d.attacks.push({ name, hit: cell(rows, r, atk.bonusCol), damage: cell(rows, r, atk.damageCol) });
+  }
+  d.additionalAttacks = scanColumn(rows, atk.extraRows[0], atk.extraRows[1], atk.nameCol);
+
+  // Languages
+  d.languages = scanColumn(rows, map.languages.rows[0], map.languages.rows[1], map.languages.col, ['LANGUAGES']);
+
+  // Equipment
+  d.equipment = [];
+  for (let r = map.equipment.rows[0]; r <= map.equipment.rows[1]; r++) {
+    const v = cell(rows, r, map.equipment.col);
+    if (v && v !== 'EQUIPPED ITEMS') {
+      const attunement = v.startsWith('*');
+      d.equipment.push({ name: attunement ? v.slice(1) : v, attunement });
+    }
+  }
+
+  // Proficiencies — reads labels from sheet
+  const pr = map.proficiencies;
+  d.proficiencies = [];
+  for (let r = pr.rows[0]; r <= pr.rows[1]; r++) {
+    const label = cell(rows, r, pr.labelCol).replace(/:?\s*$/, '');
+    const value = cell(rows, r, pr.valueCol);
+    if (value && label !== 'PROFICIENCIES') d.proficiencies.push({ label, value });
+  }
+
+  // Personality
+  const pers = map.personality;
+  function readPersonality(valueRows) {
+    return valueRows.map(r => cell(rows, r, pers.col)).filter(Boolean).join(', ');
+  }
+  d.personalityTraits = readPersonality(pers.traits);
+  d.ideals = readPersonality(pers.ideals);
+  d.bonds = readPersonality(pers.bonds);
+  d.flaws = readPersonality(pers.flaws);
+
+  // Features & Traits — read column by column (left, middle, right) to preserve grouping
+  const ft = map.features;
+  d.features = [];
+  for (const c of ft.cols) {
+    d.features.push(...scanColumn(rows, ft.rows[0], ft.rows[1], c, ['FEATURES & TRAITS']));
+  }
+
+  // Spellcasting
+  const sc = map.spellcasting;
+  d.spellcasting = {
+    class: cell(rows, ...sc.class),
+    ability: cell(rows, ...sc.ability),
+    saveDC: cell(rows, ...sc.saveDC),
+    attackBonus: cell(rows, ...sc.attackBonus)
+  };
+
+  // Cantrips — always store as {name} objects
+  d.cantrips = scanGrid(rows, map.cantrips.rows[0], map.cantrips.rows[1], map.cantrips.cols).map(name => ({ name }));
+
+  // Leveled Spells
+  d.spells = scanSpells(rows, map.spells);
+
+  // Physical Description
+  d.physical = {};
+  for (const [key, pos] of Object.entries(map.physical)) {
+    const v = cell(rows, ...pos);
+    if (v) d.physical[key] = v;
+  }
+
+  // Allies & Organizations
+  d.allies = scanColumn(rows, map.allies.rows[0], map.allies.rows[1], map.allies.col, ['ALLIES & ORGANIZATIONS']);
+
+  // Backstory
+  d.backstory = scanColumn(rows, map.backstory.rows[0], map.backstory.rows[1], map.backstory.col, ['CHARACTER BACKSTORY']);
+
+  // Images/URLs
+  d.characterImage = cell(rows, ...map.characterImage);
+  d.appearanceUrl = cell(rows, ...map.appearanceUrl);
+
+  return d;
+}
+
+// ── Extract Additional Tab Data ──
+function extractAdditional(d, rows, map) {
+  // Extended Attacks (two side-by-side tables)
+  const atk = map.attacks;
+  const extraAtks = [];
+  for (let r = atk.rows[0]; r <= atk.rows[1]; r++) {
+    for (const side of [atk.left, atk.right]) {
+      const name = cell(rows, r, side.nameCol);
+      if (name) extraAtks.push({ name, hit: cell(rows, r, side.bonusCol), damage: cell(rows, r, side.damageCol) });
+    }
+  }
+  if (extraAtks.length > 0) {
+    d.additionalTabAttacks = extraAtks;
+  }
+
+  // Extended Cantrips
+  const addCantrips = [];
+  for (let r = map.cantrips.rows[0]; r <= map.cantrips.rows[1]; r++) {
+    for (const [markerCol, nameCol] of map.cantrips.cols) {
+      const name = cell(rows, r, nameCol);
+      if (name) {
+        const marker = cell(rows, r, markerCol);
+        addCantrips.push({ name, prepared: marker === '◉' });
+      }
+    }
+  }
+  if (addCantrips.length > 0) {
+    d.additionalCantrips = addCantrips;
+  }
+
+  // Extended Leveled Spells — merge into existing spells
+  mergeSpells(d.spells, scanSpells(rows, map.spells));
+
+  // Multiclass Info
+  const cls = map.classes;
+  d.classes = [];
+  for (let r = cls.rows[0]; r <= cls.rows[1]; r++) {
+    const name = cell(rows, r, cls.classCol);
+    const level = cell(rows, r, cls.levelCol);
+    if (name) d.classes.push({ name, level });
+  }
+  d.totalLevel = cell(rows, ...map.totalLevel);
+
+  // Resistances, Immunities, Vulnerabilities
+  d.resistances = scanColumn(rows, map.resistances.rows[0], map.resistances.rows[1], map.resistances.col);
+  d.immunities = scanColumn(rows, map.immunities.rows[0], map.immunities.rows[1], map.immunities.col);
+  d.vulnerabilities = scanColumn(rows, map.vulnerabilities.rows[0], map.vulnerabilities.rows[1], map.vulnerabilities.col);
+}
+
+// ── Extract Spell Preparation Tab Data ──
+function extractSpellPreparation(rows) {
+  // Detect layout: 5-col vs 14-col (all positions 0-indexed from CSV)
+  if (cell(rows, 1, 9) === 'Spell Preparation') {
+    return parseSpellPrep5Col(rows);
+  }
+  if (cell(rows, 2, 16) === 'Spell Preparation') {
+    return parseSpellPrep14Col(rows);
+  }
+  return null;
+}
+
+function parseSpellPrep5Col(rows) {
+  const levelCols = [1, 6, 11, 16, 21, 26, 31, 36, 41, 46]; // cantrips + levels 1-9
+  const result = { cantrips: [], spells: {} };
+
+  for (let lvlIdx = 0; lvlIdx < levelCols.length; lvlIdx++) {
+    const col = levelCols[lvlIdx];
+    const spellsAtLevel = [];
+
+    for (let r = 14; r < rows.length; r++) {
+      const name = cell(rows, r, col + 1);
+      if (!name) continue;
+      if (name === 'Extra') continue; // section divider
+
+      const prepVal = cell(rows, r, col);
+      const source = cell(rows, r, col + 2) || '';
+      const preparedAs = cell(rows, r, col + 3) || '';
+      const prepared = prepVal === 'TRUE';
+      const alwaysPrepared = preparedAs.toLowerCase().includes('always');
+
+      if (lvlIdx === 0) {
+        // Only include cantrips that are selected (TRUE)
+        if (prepared) result.cantrips.push({ name, source });
+      } else {
+        spellsAtLevel.push({ name, prepared: prepared || alwaysPrepared, source, alwaysPrepared });
+      }
+    }
+
+    if (lvlIdx > 0 && spellsAtLevel.length > 0) {
+      result.spells[lvlIdx] = spellsAtLevel;
+    }
+  }
+
+  return result;
+}
+
+function parseSpellPrep14Col(rows) {
+  const levelCols = [2, 16, 30, 44, 58, 72, 86, 100, 114, 128]; // cantrips + levels 1-9
+  const result = { cantrips: [], spells: {} };
+
+  for (let lvlIdx = 0; lvlIdx < levelCols.length; lvlIdx++) {
+    const col = levelCols[lvlIdx];
+    const spellsAtLevel = [];
+
+    for (let r = 18; r < Math.min(rows.length, 150); r++) {
+      const prepVal = cell(rows, r, col);
+      if (prepVal !== 'TRUE' && prepVal !== 'FALSE') continue; // skip non-spell rows
+
+      const name = cell(rows, r, col + 1);
+      if (!name) continue;
+
+      // Source: try col+10 (Extra section offset), then col+7 (Natural section offset)
+      const source = cell(rows, r, col + 10) || cell(rows, r, col + 7) || '';
+      const prepared = prepVal === 'TRUE';
+
+      if (lvlIdx === 0) {
+        // Only include cantrips that are selected (TRUE)
+        if (prepared) result.cantrips.push({ name, source });
+      } else {
+        spellsAtLevel.push({ name, prepared, source, alwaysPrepared: false });
+      }
+    }
+
+    if (lvlIdx > 0 && spellsAtLevel.length > 0) {
+      result.spells[lvlIdx] = spellsAtLevel;
+    }
+  }
+
+  return result;
+}
+
+function hasSpellData(spellPrepData) {
+  if (spellPrepData.cantrips.length > 0) return true;
+  return Object.keys(spellPrepData.spells).length > 0;
+}
+
+// ── Extract Inventory Tab Data ──
+function extractInventory(d, rows, map) {
+  // Currency
+  d.currency = {};
+  for (const [key, pos] of Object.entries(map.currency)) {
+    const v = cell(rows, ...pos);
+    if (v) d.currency[key] = v;
+  }
+  d.coinValue = cell(rows, ...map.coinValue);
+  d.wealth = cell(rows, ...map.wealth);
+  d.maxWeight = cell(rows, ...map.maxWeight);
+  d.currentWeight = cell(rows, ...map.weight);
+
+  // Items — merge left then right into one flat list, skip empties
+  const items = map.items;
+  d.inventory = [];
+  for (const side of [items.left, items.right]) {
+    for (let r = items.rows[0]; r <= items.rows[1]; r++) {
+      const name = cell(rows, r, side.nameCol);
+      if (!name) continue;
+      d.inventory.push({
+        qty: cell(rows, r, side.qtyCol),
+        name,
+        cost: cell(rows, r, side.costCol),
+        weight: cell(rows, r, side.weightCol)
+      });
+    }
+  }
+}
+
+// ── Render Output ──
+function renderOutput() {
+  if (!characterData) return;
+  const el = document.getElementById('output');
+  el.classList.remove('placeholder');
+  cachedMarkdown = renderMarkdown(characterData);
+
+  if (currentFormat === 'preview') {
+    el.className = 'preview';
+    el.innerHTML = mdToHTML(cachedMarkdown);
+  } else {
+    el.className = 'code';
+    el.textContent = currentFormat === 'markdown' ? cachedMarkdown : renderJSON(characterData);
+  }
+}
+
+// ── Markdown to HTML (for preview) ──
+function mdToHTML(md) {
+  const lines = md.split('\n');
+  let html = '';
+  let inTable = false;
+  let inList = false;
+  let isFirstTableRow = true;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Headings
+    if (line.startsWith('### ')) {
+      if (inList) { html += '</ul>'; inList = false; }
+      if (inTable) { html += '</tbody></table>'; inTable = false; }
+      html += `<h3>${inlineFormat(line.slice(4))}</h3>`;
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      if (inList) { html += '</ul>'; inList = false; }
+      if (inTable) { html += '</tbody></table>'; inTable = false; }
+      html += `<h2>${inlineFormat(line.slice(3))}</h2>`;
+      continue;
+    }
+    if (line.startsWith('# ')) {
+      if (inList) { html += '</ul>'; inList = false; }
+      if (inTable) { html += '</tbody></table>'; inTable = false; }
+      html += `<h1>${inlineFormat(line.slice(2))}</h1>`;
+      continue;
+    }
+
+    // Table separator row — skip it
+    if (/^\|[\s:_-]+\|/.test(line) && !line.match(/[a-zA-Z0-9]/)) {
+      continue;
+    }
+
+    // Table row
+    if (line.startsWith('|') && line.endsWith('|')) {
+      if (inList) { html += '</ul>'; inList = false; }
+      const cells = line.slice(1, -1).split('|').map(c => c.trim());
+      if (!inTable) {
+        html += '<table><tbody>';
+        inTable = true;
+        isFirstTableRow = true;
+      }
+      // Only use <th> for real column headers (no **bold** in cells = plain header labels)
+      const hasInlineMarkup = cells.some(c => c.includes('**'));
+      const tag = (isFirstTableRow && !hasInlineMarkup) ? 'th' : 'td';
+      html += '<tr>' + cells.map(c => `<${tag}>${inlineFormat(c)}</${tag}>`).join('') + '</tr>';
+      isFirstTableRow = false;
+      continue;
+    }
+
+    // If we were in a table and hit a non-table line, close it
+    if (inTable) {
+      html += '</tbody></table>';
+      inTable = false;
+    }
+
+    // List item
+    if (line.startsWith('- ')) {
+      if (!inList) { html += '<ul>'; inList = true; }
+      html += `<li>${inlineFormat(line.slice(2))}</li>`;
+      continue;
+    }
+
+    // If we were in a list and hit a non-list line, close it
+    if (inList) {
+      html += '</ul>';
+      inList = false;
+    }
+
+    // Blank line
+    if (line.trim() === '') {
+      isFirstTableRow = true;
+      continue;
+    }
+
+    // Regular paragraph
+    html += `<p>${inlineFormat(line)}</p>`;
+  }
+
+  if (inList) html += '</ul>';
+  if (inTable) html += '</tbody></table>';
+  return html;
+}
+
+// Inline formatting: bold+italic, bold, italic
+function inlineFormat(text) {
+  if (!text) return '';
+  // Escape HTML
+  text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // ***bold italic***
+  text = text.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  // **bold**
+  text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  // *italic*
+  text = text.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+  return text;
+}
+
+// ── Rendering Helpers ──
+function renderTable(columns, data) {
+  let md = '| ' + columns.map(c => c.header).join(' | ') + ' |\n';
+  md += '|' + columns.map(c => c.sep || '---').join('|') + '|\n';
+  for (const item of data) {
+    md += '| ' + columns.map(c => c.value(item)).join(' | ') + ' |\n';
+  }
+  return md;
+}
+
+function renderKvTable(rows) {
+  if (rows.length === 0) return '';
+  let md = `| ${rows[0][0]} | ${rows[0][1]} |\n`;
+  md += '|---|---|\n';
+  for (let i = 1; i < rows.length; i++) {
+    md += `| ${rows[i][0]} | ${rows[i][1]} |\n`;
+  }
+  return md;
+}
+
+function renderBullets(items, format) {
+  let md = '';
+  for (const item of items) {
+    md += `- ${format ? format(item) : item}\n`;
+  }
+  return md;
+}
+
+// ── Custom Section Renderers ──
+function renderCombatStats(d) {
+  let md = `## Combat Stats\n`;
+  md += `| AC | HP | Initiative | Speed | Prof Bonus | Hit Dice |\n`;
+  md += `|:--:|:--:|:----------:|:-----:|:----------:|:--------:|\n`;
+  md += `| ${d.ac || '—'} | ${d.hpMax || '—'} | ${d.initiative || '—'} | ${d.speed || '—'} | ${d.profBonus || '—'} | ${d.hitDice || '—'} |\n\n`;
+
+  if (d.currentHp || d.tempHp || d.condition) {
+    md += `**Current HP:** ${d.currentHp || '—'}`;
+    if (d.tempHp) md += ` | **Temp HP:** ${d.tempHp}`;
+    if (d.condition) md += ` | **Condition:** ${d.condition}`;
+    md += '\n\n';
+  }
+  if (d.passivePerception) md += `**Passive Perception:** ${d.passivePerception}`;
+  if (d.inspiration) md += ` | **Inspiration:** ${d.inspiration}`;
+  if (d.passivePerception || d.inspiration) md += '\n\n';
+  return md;
+}
+
+function renderDefenses(d) {
+  const hasDefenses = (d.resistances && d.resistances.length > 0) ||
+                      (d.immunities && d.immunities.length > 0) ||
+                      (d.vulnerabilities && d.vulnerabilities.length > 0);
+  if (!hasDefenses) return '';
+  let md = `## Defenses\n`;
+  if (d.resistances && d.resistances.length > 0) md += `**Resistances:** ${d.resistances.join(', ')}\n`;
+  if (d.immunities && d.immunities.length > 0) md += `**Immunities:** ${d.immunities.join(', ')}\n`;
+  if (d.vulnerabilities && d.vulnerabilities.length > 0) md += `**Vulnerabilities:** ${d.vulnerabilities.join(', ')}\n`;
+  md += '\n';
+  return md;
+}
+
+function renderAttacks(d) {
+  if (d.attacks.length === 0) return '';
+  const ATTACK_COLS = [
+    { header: 'Weapon', sep: '--------', value: a => mdEsc(a.name) },
+    { header: 'Hit', sep: ':---:', value: a => mdEsc(a.hit) },
+    { header: 'Damage', sep: '--------', value: a => mdEsc(a.damage) }
+  ];
+  let md = `## Attacks\n`;
+  md += renderTable(ATTACK_COLS, d.attacks);
+  if (d.additionalAttacks.length > 0) {
+    md += '\n**Additional:**\n';
+    for (const a of d.additionalAttacks) md += `- ${a}\n`;
+  }
+  md += '\n';
+  return md;
+}
+
+function renderSpellcasting(d) {
+  const useSpellPrep = d.spellSource === 'spell_prep';
+  const hasAdditionalCantrips = !useSpellPrep && d.additionalCantrips && d.additionalCantrips.length > 0;
+  const hasSpells = d.cantrips.length > 0 || hasAdditionalCantrips || Object.keys(d.spells).length > 0;
+  if (!hasSpells) return '';
+
+  let md = `## Spellcasting\n`;
+  if (d.spellcasting.class) md += `**Class:** ${d.spellcasting.class}`;
+  if (d.spellcasting.ability) md += ` | **Ability:** ${d.spellcasting.ability}`;
+  if (d.spellcasting.saveDC) md += ` | **Save DC:** ${d.spellcasting.saveDC}`;
+  if (d.spellcasting.attackBonus) md += ` | **Attack Bonus:** ${d.spellcasting.attackBonus}`;
+  md += '\n\n';
+
+  if (d.cantrips.length > 0 || hasAdditionalCantrips) {
+    md += `### Cantrips\n`;
+    if (useSpellPrep) {
+      md += `| Spell | Source |\n|---|---|\n`;
+      for (const c of d.cantrips) md += `| ${mdEsc(c.name)} | ${mdEsc(c.source)} |\n`;
+    } else {
+      md += `| Spell |\n|---|\n`;
+      for (const c of d.cantrips) md += `| ${mdEsc(c.name)} |\n`;
+      if (hasAdditionalCantrips) {
+        for (const c of d.additionalCantrips) md += `| ${mdEsc(c.name)} |\n`;
+      }
+    }
+    md += '\n';
+  }
+
+  const levelNames = ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
+  for (const [lvl, data] of Object.entries(d.spells)) {
+    const label = levelNames[lvl] || lvl + 'th';
+    md += `### ${label} Level`;
+    if (data.maxSlots && data.maxSlots !== '0') {
+      md += ` (${data.maxSlots} slots`;
+      if (data.curSlots) md += `, ${data.curSlots} remaining`;
+      md += `)`;
+    }
+    md += '\n';
+    if (data.spells.length > 0) {
+      const sorted = [...data.spells].sort((a, b) => {
+        const aRank = a.alwaysPrepared ? 0 : a.prepared ? 1 : 2;
+        const bRank = b.alwaysPrepared ? 0 : b.prepared ? 1 : 2;
+        return aRank - bRank;
+      });
+      if (useSpellPrep) {
+        md += `| Prepared | Spell | Source |\n|:---:|---|---|\n`;
+        for (const s of sorted) {
+          const mark = s.alwaysPrepared ? 'Always' : s.prepared ? '◉' : '〇';
+          md += `| ${mark} | ${mdEsc(s.name)} | ${mdEsc(s.source)} |\n`;
+        }
+      } else {
+        md += `| Prepared | Spell |\n|:---:|---|\n`;
+        for (const s of sorted) {
+          md += `| ${s.prepared ? '◉' : '〇'} | ${mdEsc(s.name)} |\n`;
+        }
+      }
+    }
+    md += '\n';
+  }
+  return md;
+}
+
+function renderInventoryContainer(c) {
+  let md = '';
+  if (c.currency && Object.keys(c.currency).length > 0) {
+    md += `| CP | SP | EP | GP | PP |\n`;
+    md += `|:--:|:--:|:--:|:--:|:--:|\n`;
+    md += `| ${c.currency.copper || '0'} | ${c.currency.silver || '0'} | ${c.currency.electrum || '0'} | ${c.currency.gold || '0'} | ${c.currency.platinum || '0'} |\n\n`;
+  }
+  const parts = [];
+  if (c.wealth) parts.push(`**Wealth:** ${c.wealth}`);
+  if (c.coinValue) parts.push(`**Coin Value:** ${c.coinValue}`);
+  if (c.currentWeight || c.maxWeight) parts.push(`**Weight:** ${c.currentWeight || '?'} / ${c.maxWeight || '?'}`);
+  if (parts.length > 0) md += parts.join(' | ') + '\n\n';
+  if (c.inventory && c.inventory.length > 0) {
+    md += `| Qty | Item | Cost | Weight |\n`;
+    md += `|:---:|------|------|-------:|\n`;
+    for (const item of c.inventory) {
+      md += `| ${mdEsc(item.qty)} | ${mdEsc(item.name)} | ${mdEsc(item.cost)} | ${mdEsc(item.weight)} |\n`;
+    }
+    md += '\n';
+  }
+  return md;
+}
+
+function renderInventorySection(d) {
+  let md = '';
+  if (d.inventory && d.inventory.length > 0) {
+    md += `## Inventory\n`;
+    md += renderInventoryContainer(d);
+  }
+  if (d.extraInventories && d.extraInventories.length > 0) {
+    for (const container of d.extraInventories) {
+      md += `## ${container.name}\n`;
+      md += renderInventoryContainer(container);
+    }
+  }
+  return md;
+}
+
+// ── Section Descriptors ──
+const SECTIONS = [
+  // 1. Character Name
+  { type: 'custom', render: d => `# ${d.name || 'Unknown Character'}\n\n` },
+
+  // 2. Basic Info
+  {
+    type: 'kv_table',
+    rows: d => {
+      const rows = [
+        ['**Race**', d.race || '—'],
+        ['**Class**', d.classLevel || '—'],
+        ['**Background**', d.background || '—'],
+        ['**Alignment**', d.alignment || '—'],
+        ['**Player**', d.player || '—']
+      ];
+      if (d.totalLevel) rows.push(['**Total Level**', d.totalLevel]);
+      return rows;
+    }
+  },
+
+  // 3. Classes (conditional)
+  {
+    type: 'table',
+    heading: 'Classes',
+    show: d => d.classes && d.classes.length > 0,
+    columns: [
+      { header: 'Class', sep: '-------', value: c => mdEsc(c.name) },
+      { header: 'Level', sep: ':-----:', value: c => mdEsc(c.level) }
+    ],
+    data: d => d.classes
+  },
+
+  // 4. Personality & Physical
+  {
+    type: 'kv_table',
+    rows: d => {
+      const rows = [];
+      if (d.personalityTraits) rows.push(['**Personality Traits**', d.personalityTraits]);
+      if (d.ideals) rows.push(['**Ideals**', d.ideals]);
+      if (d.bonds) rows.push(['**Bonds**', d.bonds]);
+      if (d.flaws) rows.push(['**Flaws**', d.flaws]);
+      for (const [key, val] of Object.entries(d.physical)) {
+        rows.push([`**${key.charAt(0).toUpperCase() + key.slice(1)}**`, val]);
+      }
+      return rows;
+    }
+  },
+
+  // 5. Combat Stats
+  { type: 'custom', render: renderCombatStats },
+
+  // 6. Defenses
+  { type: 'custom', render: renderDefenses },
+
+  // 7. Ability Scores
+  {
+    type: 'table',
+    heading: 'Ability Scores',
+    show: d => d.abilities.length > 0,
+    columns: [
+      { header: 'Ability', sep: '---------', value: a => a.key },
+      { header: 'Score', sep: ':-----:', value: a => a.score || '—' },
+      { header: 'Modifier', sep: ':--------:', value: a => a.modifier || '—' }
+    ],
+    data: d => d.abilities
+  },
+
+  // 8. Saving Throws
+  {
+    type: 'table',
+    heading: 'Saving Throws',
+    show: d => d.saves.length > 0,
+    columns: [
+      { header: 'Ability', sep: '---------', value: s => s.name },
+      { header: 'Modifier', sep: ':--------:', value: s => s.modifier || '—' },
+      { header: 'Proficient', sep: ':----------:', value: s => s.proficient ? 'Yes' : '' }
+    ],
+    data: d => d.saves
+  },
+
+  // 9. Skills
+  {
+    type: 'table',
+    heading: 'Skills',
+    show: d => d.skills.length > 0,
+    columns: [
+      { header: 'Skill', sep: '-------', value: s => s.name },
+      { header: 'Modifier', sep: ':--------:', value: s => s.modifier || '—' },
+      { header: 'Proficient', sep: ':----------:', value: s => s.proficiency ? 'Yes' : '' },
+      { header: 'Expert', sep: ':------:', value: s => s.proficiency === 'Expertise' ? 'Yes' : '' }
+    ],
+    data: d => d.skills
+  },
+
+  // 10. Proficiencies
+  {
+    type: 'table',
+    heading: 'Proficiencies',
+    show: d => d.proficiencies.some(p => p.value),
+    columns: [
+      { header: 'Type', sep: '---', value: p => p.label },
+      { header: 'Details', sep: '---', value: p => p.value }
+    ],
+    data: d => d.proficiencies.filter(p => p.value)
+  },
+
+  // 11. Attacks
+  { type: 'custom', render: renderAttacks },
+
+  // 12. Extended Attacks (conditional)
+  {
+    type: 'table',
+    heading: 'Extended Attacks',
+    show: d => d.additionalTabAttacks && d.additionalTabAttacks.length > 0,
+    columns: [
+      { header: 'Weapon', sep: '--------', value: a => mdEsc(a.name) },
+      { header: 'Hit', sep: ':---:', value: a => mdEsc(a.hit) },
+      { header: 'Damage', sep: '--------', value: a => mdEsc(a.damage) }
+    ],
+    data: d => d.additionalTabAttacks
+  },
+
+  // 13. Features & Traits
+  {
+    type: 'bullets',
+    heading: 'Features & Traits',
+    show: d => d.features.length > 0,
+    items: d => d.features
+  },
+
+  // 14. Equipment
+  {
+    type: 'bullets',
+    heading: 'Equipment',
+    show: d => d.equipment.length > 0,
+    items: d => d.equipment,
+    format: item => `${item.name}${item.attunement ? ' (attunement)' : ''}`
+  },
+
+  // 15. Languages
+  {
+    type: 'text',
+    heading: 'Languages',
+    show: d => d.languages.length > 0,
+    text: d => d.languages.join(', ')
+  },
+
+  // 16. Spellcasting
+  { type: 'custom', render: renderSpellcasting },
+
+  // 17. Allies & Organizations
+  {
+    type: 'bullets',
+    heading: 'Allies & Organizations',
+    show: d => d.allies.length > 0,
+    items: d => d.allies
+  },
+
+  // 18. Backstory
+  {
+    type: 'text',
+    heading: 'Backstory',
+    show: d => d.backstory.length > 0,
+    text: d => d.backstory.join('\n')
+  },
+
+  // 19. Inventory
+  { type: 'custom', render: renderInventorySection }
+];
+
+function renderSection(s, d) {
+  switch (s.type) {
+    case 'custom': return s.render(d);
+    case 'kv_table': {
+      const rows = s.rows(d);
+      if (rows.length === 0) return '';
+      return (s.heading ? `## ${s.heading}\n` : '') + renderKvTable(rows) + '\n';
+    }
+    case 'table':
+      return `## ${s.heading}\n` + renderTable(s.columns, s.data(d)) + '\n';
+    case 'bullets':
+      return `## ${s.heading}\n` + renderBullets(s.items(d), s.format) + '\n';
+    case 'text':
+      return `## ${s.heading}\n` + s.text(d) + '\n\n';
+  }
+}
+
+function renderMarkdown(d) {
+  return SECTIONS
+    .filter(s => !s.show || s.show(d))
+    .map(s => renderSection(s, d))
+    .join('')
+    .trim();
+}
+
+function renderJSON(d) {
+  return JSON.stringify(d, null, 2);
+}
+
+// Allow Enter key to trigger fetch
+document.getElementById('urlInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') fetchSheet();
+});
+</script>
+</body>
+</html>
