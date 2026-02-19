@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Encounter Manager | D&D Initiative & Combat Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO -->
+    <meta name="description" content="D&D encounter manager and initiative tracker. Build encounters, roll initiative, track HP, conditions, and legendary actions. Runs entirely in your browser.">
+    <meta name="keywords" content="D&D, encounter manager, initiative tracker, combat tracker, DnD 5e, dungeon master tools">
+    <meta name="author" content="PromptFerret">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Encounter Manager — D&D Initiative & Combat Tracker">
+    <meta property="og:description" content="Build encounters, roll initiative, and track combat. No server, no accounts — runs in your browser.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://promptferret.github.io/tools/encounter/">
+
+<style>
+  :root {
+    --bg: #0f0f17;
+    --surface: #1a1a2e;
+    --surface2: #252545;
+    --accent: #7c5cbf;
+    --accent-hover: #9b7ed8;
+    --accent-glow: rgba(124, 92, 191, 0.25);
+    --text: #e8e6f0;
+    --text-muted: #8a8a9a;
+    --text-dim: #5a5a6a;
+    --border: #2a2a3e;
+    --success: #4ecb71;
+    --warning: #e0b055;
+    --error: #e05565;
+    --mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 1.5rem 2rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.02em; }
+  .header h1 span { color: var(--accent); }
+  .header .tagline { color: var(--text-dim); font-size: 0.75rem; margin-top: 0.25rem; }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-wrap: wrap;
+  }
+  .toolbar .sep { width: 1px; height: 1.5rem; background: var(--border); margin: 0 0.25rem; }
+  .toolbar .spacer { flex: 1; }
+
+  button {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.15s;
+    background: var(--surface2);
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  button:hover { background: var(--accent); color: white; border-color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+  .btn-action { background: var(--accent); color: white; border-color: var(--accent); padding: 0.5rem 1.25rem; }
+  .btn-action:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn-toggle.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn-danger { color: var(--error); border-color: var(--error); background: transparent; }
+  .btn-danger:hover { background: var(--error); color: white; }
+  .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.72rem; }
+
+  /* ── Status Bar ── */
+  #statusEl {
+    font-size: 0.75rem;
+    padding: 0.35rem 1.5rem;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    min-height: 1.6rem;
+  }
+  #statusEl:empty { display: none; }
+  #statusEl.error { color: var(--error); }
+  #statusEl.success { color: var(--success); animation: status-flash 0.4s ease-out; }
+  #statusEl.warning { color: var(--warning); }
+  @keyframes status-flash {
+    0% { background: rgba(78, 203, 113, 0.2); }
+    100% { background: var(--bg); }
+  }
+
+  /* ── Main Layout ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .view { display: none; padding: 1.25rem 1.5rem; }
+  .view.active { display: block; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.5rem;
+    transition: border-color 0.15s;
+  }
+  .card:hover { border-color: var(--accent-glow); }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .card-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--accent);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .card-meta {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    margin-top: 0.3rem;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .card-meta span { white-space: nowrap; }
+  .card-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+
+  /* ── Forms ── */
+  .form-section {
+    margin-bottom: 1.25rem;
+  }
+  .form-section-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .form-grid {
+    display: grid;
+    gap: 0.5rem 0.75rem;
+  }
+  .form-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .form-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .form-grid.cols-6 { grid-template-columns: repeat(6, 1fr); }
+  .form-field label {
+    display: block;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    margin-bottom: 0.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .form-field input,
+  .form-field select,
+  .form-field textarea {
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.8rem;
+    font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  .form-field input:focus,
+  .form-field select:focus,
+  .form-field textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+  }
+  .form-field input::placeholder,
+  .form-field textarea::placeholder { color: var(--text-dim); }
+  .form-field textarea { resize: vertical; min-height: 2.5rem; font-family: var(--mono); font-size: 0.78rem; }
+  .form-field select { cursor: pointer; }
+  .form-field input[type="number"] { font-family: var(--mono); }
+  .form-field input[type="checkbox"] { width: auto; margin-right: 0.3rem; accent-color: var(--accent); }
+  .form-field .checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding-top: 1.2rem;
+  }
+
+  /* Dynamic rows (attacks, features, etc.) */
+  .dyn-row {
+    display: flex;
+    gap: 0.4rem;
+    align-items: flex-start;
+    margin-bottom: 0.35rem;
+    flex-wrap: wrap;
+  }
+  .dyn-row input,
+  .dyn-row select,
+  .dyn-row textarea {
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.78rem;
+    font-family: inherit;
+  }
+  .dyn-row input:focus,
+  .dyn-row select:focus,
+  .dyn-row textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+  }
+  .dyn-row textarea { resize: vertical; min-height: 1.8rem; font-family: var(--mono); font-size: 0.75rem; }
+  .dyn-row .btn-remove {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.72rem;
+    color: var(--error);
+    border-color: transparent;
+    background: transparent;
+    flex-shrink: 0;
+  }
+  .dyn-row .btn-remove:hover { background: var(--error); color: white; }
+  .dyn-label {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.15rem;
+  }
+  .dyn-header {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 0.25rem;
+    padding: 0 0.1rem;
+  }
+  .btn-add-row {
+    font-size: 0.72rem;
+    padding: 0.25rem 0.75rem;
+    margin-top: 0.25rem;
+  }
+
+  /* ── Form Actions ── */
+  .form-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── Empty State ── */
+  .empty-state {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 3rem 1rem;
+    font-size: 0.85rem;
+  }
+  .empty-state p { margin-bottom: 0.5rem; }
+
+  /* ── Search Bar ── */
+  .search-bar {
+    margin-bottom: 0.75rem;
+  }
+  .search-bar input {
+    width: 100%;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.82rem;
+  }
+  .search-bar input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+  }
+  .search-bar input::placeholder { color: var(--text-dim); }
+
+  /* ── Player Roster (in party form) ── */
+  .roster-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.3rem;
+  }
+  .roster-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--surface2);
+    color: var(--text-muted);
+  }
+  .roster-chip.selected { background: var(--accent); color: white; border-color: var(--accent); }
+  .roster-chip .chip-remove {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    margin-left: 0.1rem;
+  }
+  .roster-chip .chip-remove:hover { color: var(--error); }
+
+  /* ── Monster Picks (in encounter form) ── */
+  .monster-pick {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 0.3rem;
+    font-size: 0.8rem;
+  }
+  .monster-pick .pick-name { flex: 1; color: var(--text); }
+  .monster-pick .pick-qty {
+    width: 50px;
+    padding: 0.2rem 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.78rem;
+    font-family: var(--mono);
+    text-align: center;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    padding: 0.4rem 1.5rem;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    justify-content: space-between;
+  }
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  /* ── Responsive ── */
+  @supports (height: 100dvh) { body { height: 100dvh; } }
+  @media (max-width: 640px) {
+    .toolbar { flex-wrap: wrap; }
+    .form-grid.cols-3,
+    .form-grid.cols-4 { grid-template-columns: 1fr 1fr; }
+    .form-grid.cols-6 { grid-template-columns: repeat(3, 1fr); }
+    .view { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>Encounter</span> Manager</h1>
+  <p class="tagline">D&D initiative & combat tracker</p>
+</div>
+
+<div class="toolbar">
+  <button class="btn-toggle active" id="navTemplates" onclick="switchView('templates')">Monsters</button>
+  <button class="btn-toggle" id="navParties" onclick="switchView('parties')">Parties</button>
+  <button class="btn-toggle" id="navEncounters" onclick="switchView('encounters')">Encounters</button>
+  <button class="btn-toggle" id="navCombat" onclick="switchView('combat')">Combat</button>
+  <div class="spacer"></div>
+  <button class="btn-action" id="btnNew" onclick="handleNew()">+ New Monster</button>
+</div>
+
+<div id="statusEl"></div>
+
+<div class="main">
+  <div id="viewTemplates" class="view active"></div>
+  <div id="viewParties" class="view"></div>
+  <div id="viewEncounters" class="view"></div>
+  <div id="viewCombat" class="view"></div>
+</div>
+
+<div class="footer">
+  <span><a href="https://promptferret.github.io">PromptFerret</a> &middot; <a href="https://github.com/PromptFerret/tools/blob/main/LICENSE" target="_blank">MIT License</a> &middot; Vibe coded with <a href="https://docs.anthropic.com/en/docs/claude-code" target="_blank">Claude Code</a></span>
+  <span><a href="../">All Tools</a> &middot; Data stored in your browser</span>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// ── Constants ──
+// ═══════════════════════════════════════════════════════════════
+
+const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+const ABILITY_NAMES = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' };
+const SKILLS = [
+  'Acrobatics', 'Animal Handling', 'Arcana', 'Athletics', 'Deception',
+  'History', 'Insight', 'Intimidation', 'Investigation', 'Medicine',
+  'Nature', 'Perception', 'Performance', 'Persuasion', 'Religion',
+  'Sleight of Hand', 'Stealth', 'Survival'
+];
+const SIZES = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan'];
+const STORAGE_KEYS = {
+  templates: 'pf_enc_templates',
+  groups: 'pf_enc_groups',
+  encounters: 'pf_enc_encounters',
+  parties: 'pf_enc_parties',
+  combat: 'pf_enc_combat',
+  players: 'pf_enc_players'
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ── State ──
+// ═══════════════════════════════════════════════════════════════
+
+let state = {
+  templates: [],
+  groups: [],
+  encounters: [],
+  parties: [],
+  combat: null,
+  players: []
+};
+
+let currentView = 'templates';
+let formMode = null;   // null = list, 'template' = editing template, 'encounter' = editing encounter, 'party' = editing party
+let formData = null;   // working copy of the item being edited
+let savedFormSnapshot = null; // snapshot of formData at last save, for dirty checking
+let searchQuery = '';
+
+// ═══════════════════════════════════════════════════════════════
+// ── Utilities ──
+// ═══════════════════════════════════════════════════════════════
+
+function uuid() { return crypto.randomUUID(); }
+function abilityMod(score) { return Math.floor((score - 10) / 2); }
+function modStr(score) { const m = abilityMod(score); return m >= 0 ? '+' + m : '' + m; }
+function esc(s) { if (!s) return ''; return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+function setStatus(msg, type) {
+  const el = document.getElementById('statusEl');
+  el.textContent = msg;
+  el.className = '';
+  void el.offsetWidth; // force reflow to restart animation
+  el.className = type || '';
+}
+
+function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+function isFormDirty() { return JSON.stringify(formData) !== JSON.stringify(savedFormSnapshot); }
+
+function calcPassivePerception(t) {
+  const wisMod = abilityMod(t.abilities.wis);
+  const percSkill = t.skills.find(s => s.name === 'Perception');
+  return 10 + (percSkill ? percSkill.bonus : wisMod);
+}
+
+function getPassivePerception(t) {
+  return t.passivePerception != null ? t.passivePerception : calcPassivePerception(t);
+}
+
+function updatePPDisplay() {
+  const auto = calcPassivePerception(formData);
+  const lbl = document.getElementById('pp_auto');
+  const inp = document.getElementById('pp_input');
+  if (lbl) lbl.textContent = auto;
+  if (inp) inp.placeholder = auto;
+}
+
+function newTemplate() {
+  return {
+    id: uuid(), name: '', size: 'Medium', type: '', alignment: '', ac: 10, acNote: '',
+    hpMax: 1, hpFormula: '', speed: '30 ft.', cr: '',
+    abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+    savingThrows: [], skills: [],
+    damageResistances: '', damageImmunities: '', conditionImmunities: '', damageVulnerabilities: '',
+    senses: '', passivePerception: null, languages: '', tactics: '',
+    initBonus: 0, initAdvantage: false,
+    attacks: [], // each: { name, bonus, note, damages: [{ dice, type, note }] }
+    multiattack: '',
+    features: [],
+    legendaryActionBudget: 0, legendaryActions: [], legendaryResistances: 0,
+    groups: []
+  };
+}
+
+function newEncounter() {
+  return { id: uuid(), name: '', location: '', campaign: '', notes: '', monsters: [] };
+}
+
+function newParty() {
+  return { id: uuid(), name: '', players: [] };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── localStorage ──
+// ═══════════════════════════════════════════════════════════════
+
+function load() {
+  try {
+    for (const [key, skey] of Object.entries(STORAGE_KEYS)) {
+      const raw = localStorage.getItem(skey);
+      if (raw) state[key] = JSON.parse(raw);
+    }
+  } catch (e) {
+    console.error('Failed to load state:', e);
+  }
+}
+
+function save(key) {
+  try {
+    if (key) {
+      localStorage.setItem(STORAGE_KEYS[key], JSON.stringify(state[key]));
+    } else {
+      for (const [k, skey] of Object.entries(STORAGE_KEYS)) {
+        localStorage.setItem(skey, JSON.stringify(state[k]));
+      }
+    }
+  } catch (e) {
+    console.error('Failed to save state:', e);
+    setStatus('Failed to save — localStorage may be full.', 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Dice Engine ──
+// ═══════════════════════════════════════════════════════════════
+
+function rollDice(notation, opts = {}) {
+  const match = notation.trim().match(/^(\d+)d(\d+)\s*([+-]\s*\d+)?$/i);
+  if (!match) return { rolls: [], modifier: 0, total: 0, text: 'Invalid: ' + notation };
+  const count = parseInt(match[1]);
+  const sides = parseInt(match[2]);
+  const modifier = match[3] ? parseInt(match[3].replace(/\s/g, '')) : 0;
+  const rolls = [];
+  for (let i = 0; i < count; i++) rolls.push(Math.floor(Math.random() * sides) + 1);
+
+  if (opts.advantage || opts.disadvantage) {
+    // For d20 rolls with adv/dis: roll twice, pick higher/lower
+    if (count === 1 && sides === 20) {
+      const second = Math.floor(Math.random() * 20) + 1;
+      const both = [rolls[0], second];
+      const pick = opts.advantage ? Math.max(...both) : Math.min(...both);
+      const label = opts.advantage ? 'adv' : 'dis';
+      return {
+        rolls: both, modifier, total: pick + modifier,
+        text: '[' + both.join(', ') + '] → ' + pick + (modifier ? (modifier > 0 ? ' + ' : ' - ') + Math.abs(modifier) + ' = ' + (pick + modifier) : '') + ' (' + label + ')'
+      };
+    }
+  }
+
+  const sum = rolls.reduce((a, b) => a + b, 0);
+  const total = sum + modifier;
+  let text = '[' + rolls.join(', ') + ']';
+  if (modifier) text += (modifier > 0 ? ' + ' : ' - ') + Math.abs(modifier) + ' = ' + total;
+  else if (rolls.length > 1) text += ' = ' + total;
+  return { rolls, modifier, total, text };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── View Management ──
+// ═══════════════════════════════════════════════════════════════
+
+function switchView(view) {
+  // Check for unsaved form changes before switching
+  if (formMode && isFormDirty()) {
+    if (!confirm('You have unsaved changes. Leave without saving?')) return;
+  }
+  formMode = null;
+  formData = null;
+  savedFormSnapshot = null;
+  searchQuery = '';
+
+  currentView = view;
+  ['templates', 'parties', 'encounters', 'combat'].forEach(v => {
+    document.getElementById('nav' + v.charAt(0).toUpperCase() + v.slice(1)).classList.toggle('active', view === v);
+    document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1)).classList.toggle('active', view === v);
+  });
+
+  const btnNew = document.getElementById('btnNew');
+  btnNew.style.display = view === 'combat' ? 'none' : '';
+  const labels = { templates: '+ New Monster', parties: '+ New Party', encounters: '+ New Encounter' };
+  btnNew.textContent = labels[view] || '';
+
+  render();
+}
+
+function handleNew() {
+  if (currentView === 'templates') showTemplateForm(null);
+  else if (currentView === 'parties') showPartyForm(null);
+  else if (currentView === 'encounters') showEncounterForm(null);
+}
+
+function render() {
+  if (currentView === 'templates') {
+    if (formMode === 'template') renderTemplateForm();
+    else renderTemplateList();
+  } else if (currentView === 'parties') {
+    if (formMode === 'party') renderPartyForm();
+    else renderPartyList();
+  } else if (currentView === 'encounters') {
+    if (formMode === 'encounter') renderEncounterForm();
+    else renderEncounterList();
+  } else if (currentView === 'combat') {
+    renderCombatView();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Template List ──
+// ═══════════════════════════════════════════════════════════════
+
+function renderTemplateList() {
+  const el = document.getElementById('viewTemplates');
+  document.getElementById('btnNew').style.display = '';
+
+  const filtered = state.templates.filter(t =>
+    !searchQuery || t.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  let html = '<div class="search-bar"><input type="text" placeholder="Search monsters..." value="' + esc(searchQuery) + '" oninput="searchQuery=this.value;renderTemplateList()"></div>';
+
+  if (filtered.length === 0) {
+    if (state.templates.length === 0) {
+      html += '<div class="empty-state"><p>No monsters yet.</p><p>Click <strong>+ New Monster</strong> to create one.</p></div>';
+    } else {
+      html += '<div class="empty-state"><p>No monsters match your search.</p></div>';
+    }
+  } else {
+    filtered.forEach(t => {
+      const meta = [];
+      if (t.size) meta.push(t.size);
+      if (t.type) meta.push(t.type);
+      if (t.alignment) meta.push(t.alignment);
+      if (t.cr) meta.push('CR ' + t.cr);
+      meta.push('AC ' + t.ac);
+      meta.push(t.hpMax + ' HP');
+      meta.push('PP ' + getPassivePerception(t));
+      if (t.attacks.length) meta.push(t.attacks.length + ' attack' + (t.attacks.length > 1 ? 's' : ''));
+      if (t.legendaryActionBudget > 0) meta.push('Legendary');
+
+      html += '<div class="card">';
+      html += '<div class="card-header">';
+      html += '<span class="card-title">' + esc(t.name || 'Unnamed') + '</span>';
+      html += '<div class="card-actions">';
+      html += '<button class="btn-sm" onclick="showTemplateForm(\'' + t.id + '\')">Edit</button>';
+      html += '<button class="btn-sm btn-danger" onclick="deleteTemplate(\'' + t.id + '\')">Delete</button>';
+      html += '</div></div>';
+      html += '<div class="card-meta">' + meta.map(m => '<span>' + esc(m) + '</span>').join('') + '</div>';
+      html += '</div>';
+    });
+  }
+
+  el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Template Form ──
+// ═══════════════════════════════════════════════════════════════
+
+function showTemplateForm(id) {
+  formMode = 'template';
+  if (id) {
+    const t = state.templates.find(t => t.id === id);
+    if (!t) { setStatus('Monster not found.', 'error'); return; }
+    formData = deepClone(t);
+  } else {
+    formData = newTemplate();
+  }
+  savedFormSnapshot = deepClone(formData);
+  document.getElementById('btnNew').style.display = 'none';
+  renderTemplateForm();
+}
+
+function renderTemplateForm() {
+  const d = formData;
+  const el = document.getElementById('viewTemplates');
+
+  let html = '';
+
+  // ── Basic Info ──
+  html += '<div class="form-section"><div class="form-section-title">Basic Info</div>';
+  html += '<div class="form-grid cols-4">';
+  html += formField('Name', 'text', d.name, 'formData.name=this.value', 'Goblin');
+  html += formField('Size', 'select', d.size, 'formData.size=this.value', null, SIZES);
+  html += formField('Type', 'text', d.type, 'formData.type=this.value', 'Humanoid');
+  html += formField('Alignment', 'text', d.alignment, 'formData.alignment=this.value', 'Unaligned');
+  html += '</div>';
+  html += '<div class="form-grid cols-4" style="margin-top:0.5rem">';
+  html += formField('AC', 'number', d.ac, 'formData.ac=+this.value');
+  html += formField('AC Note', 'text', d.acNote, 'formData.acNote=this.value', 'natural armor');
+  html += formField('HP Max', 'number', d.hpMax, 'formData.hpMax=+this.value');
+  html += '<div class="form-field"><label>HP Formula</label><div style="display:flex;gap:0.3rem"><input type="text" value="' + esc(d.hpFormula) + '" onchange="formData.hpFormula=this.value" placeholder="2d6" style="flex:1"><button class="btn-sm" onclick="hpFromFormula(\'avg\')" title="Set HP Max to formula average">Avg</button><button class="btn-sm" onclick="hpFromFormula(\'roll\')" title="Roll HP from formula">Roll</button></div></div>';
+  html += '</div>';
+  html += '<div class="form-grid cols-4" style="margin-top:0.5rem">';
+  html += formField('Speed', 'text', d.speed, 'formData.speed=this.value', '30 ft.');
+  html += formField('CR', 'text', d.cr, 'formData.cr=this.value', '1/4');
+  html += formField('Init Bonus', 'number', d.initBonus, 'formData.initBonus=+this.value');
+  html += '<div class="form-field"><label class="checkbox-label"><input type="checkbox" ' + (d.initAdvantage ? 'checked' : '') + ' onchange="formData.initAdvantage=this.checked"> Init Advantage</label></div>';
+  html += '</div></div>';
+
+  // ── Ability Scores ──
+  html += '<div class="form-section"><div class="form-section-title">Ability Scores</div>';
+  html += '<div class="form-grid cols-6">';
+  ABILITIES.forEach(ab => {
+    const score = d.abilities[ab];
+    html += '<div class="form-field"><label>' + ab.toUpperCase() + ' (<span id="mod_' + ab + '">' + modStr(score) + '</span>)</label>';
+    const extra = ab === 'wis' ? ';updatePPDisplay()' : '';
+    html += '<input type="number" value="' + score + '" onchange="formData.abilities.' + ab + '=+this.value;document.getElementById(\'mod_' + ab + '\').textContent=modStr(+this.value)' + extra + '">';
+    html += '</div>';
+  });
+  html += '</div></div>';
+
+  // ── Saving Throws ──
+  html += '<div class="form-section"><div class="form-section-title">Saving Throws</div>';
+  d.savingThrows.forEach((st, i) => {
+    html += '<div class="dyn-row">';
+    html += '<select onchange="formData.savingThrows[' + i + '].ability=this.value" style="width:120px">';
+    ABILITIES.forEach(ab => {
+      html += '<option value="' + ab + '"' + (st.ability === ab ? ' selected' : '') + '>' + ABILITY_NAMES[ab] + '</option>';
+    });
+    html += '</select>';
+    html += '<input type="number" value="' + st.bonus + '" onchange="formData.savingThrows[' + i + '].bonus=+this.value" style="width:60px" placeholder="+0">';
+    html += '<button class="btn-remove" onclick="formData.savingThrows.splice(' + i + ',1);renderTemplateForm()">×</button>';
+    html += '</div>';
+  });
+  html += '<button class="btn-add-row" onclick="formData.savingThrows.push({ability:\'str\',bonus:0});renderTemplateForm()">+ Add Save</button>';
+  html += '</div>';
+
+  // ── Skills ──
+  html += '<div class="form-section"><div class="form-section-title">Skills</div>';
+  d.skills.forEach((sk, i) => {
+    html += '<div class="dyn-row">';
+    html += '<select onchange="formData.skills[' + i + '].name=this.value" style="width:150px">';
+    SKILLS.forEach(s => {
+      html += '<option value="' + s + '"' + (sk.name === s ? ' selected' : '') + '>' + s + '</option>';
+    });
+    html += '</select>';
+    html += '<input type="number" value="' + sk.bonus + '" onchange="formData.skills[' + i + '].bonus=+this.value" style="width:60px" placeholder="+0">';
+    html += '<button class="btn-remove" onclick="formData.skills.splice(' + i + ',1);renderTemplateForm()">×</button>';
+    html += '</div>';
+  });
+  html += '<button class="btn-add-row" onclick="formData.skills.push({name:\'Perception\',bonus:0});renderTemplateForm()">+ Add Skill</button>';
+  html += '</div>';
+
+  // ── Defenses ──
+  html += '<div class="form-section"><div class="form-section-title">Defenses & Senses</div>';
+  html += '<div class="form-grid cols-2">';
+  html += formField('Damage Resistances', 'text', d.damageResistances, 'formData.damageResistances=this.value', 'fire, cold');
+  html += formField('Damage Immunities', 'text', d.damageImmunities, 'formData.damageImmunities=this.value', 'poison');
+  html += formField('Damage Vulnerabilities', 'text', d.damageVulnerabilities, 'formData.damageVulnerabilities=this.value', 'radiant');
+  html += formField('Condition Immunities', 'text', d.conditionImmunities, 'formData.conditionImmunities=this.value', 'frightened');
+  html += formField('Senses', 'text', d.senses, 'formData.senses=this.value', 'darkvision 60 ft.');
+  html += formField('Languages', 'text', d.languages, 'formData.languages=this.value', 'Common, Goblin');
+  html += '</div>';
+  html += '<div class="form-grid cols-2" style="margin-top:0.5rem">';
+  html += '<div class="form-field"><label>Passive Perception (auto: <span id="pp_auto">' + calcPassivePerception(d) + '</span>)</label>';
+  html += '<input type="number" id="pp_input" value="' + (d.passivePerception != null ? d.passivePerception : '') + '" onchange="formData.passivePerception=this.value===\'\'?null:+this.value;updatePPDisplay()" placeholder="' + calcPassivePerception(d) + '">';
+  html += '</div>';
+  html += '<div class="form-field"></div>';
+  html += '</div></div>';
+
+  // ── Attacks ──
+  html += '<div class="form-section"><div class="form-section-title">Attacks</div>';
+  html += formField('Multiattack', 'text', d.multiattack, 'formData.multiattack=this.value', 'Two claw attacks');
+  html += '<div style="margin-top:0.5rem">';
+  d.attacks.forEach((a, i) => {
+    html += '<div class="card" style="padding:0.6rem 0.75rem;margin-bottom:0.4rem">';
+    // Attack header row: name, bonus, note, remove
+    if (i === 0) {
+      html += '<div class="dyn-header">';
+      html += '<span class="dyn-label" style="flex:2">Name</span>';
+      html += '<span class="dyn-label" style="width:55px">Hit</span>';
+      html += '<span class="dyn-label" style="flex:1">Note</span>';
+      html += '<span style="width:30px"></span>';
+      html += '</div>';
+    }
+    html += '<div class="dyn-row" style="margin-bottom:0.3rem">';
+    html += '<input type="text" value="' + esc(a.name) + '" onchange="formData.attacks[' + i + '].name=this.value" placeholder="Scimitar" style="flex:2">';
+    html += '<input type="number" value="' + a.bonus + '" onchange="formData.attacks[' + i + '].bonus=+this.value" placeholder="+4" style="width:55px">';
+    html += '<input type="text" value="' + esc(a.note || '') + '" onchange="formData.attacks[' + i + '].note=this.value" placeholder="reach 10ft" style="flex:1">';
+    html += '<button class="btn-remove" onclick="formData.attacks.splice(' + i + ',1);renderTemplateForm()">×</button>';
+    html += '</div>';
+    // Damage rows
+    if (a.damages && a.damages.length > 0) {
+      html += '<div style="padding-left:0.75rem;border-left:2px solid var(--border)">';
+      html += '<div class="dyn-header">';
+      html += '<span class="dyn-label" style="width:80px">Damage</span>';
+      html += '<span class="dyn-label" style="width:80px">Type</span>';
+      html += '<span class="dyn-label" style="flex:1">Note</span>';
+      html += '<span style="width:30px"></span>';
+      html += '</div>';
+      a.damages.forEach((dm, j) => {
+        html += '<div class="dyn-row">';
+        html += '<input type="text" value="' + esc(dm.dice) + '" onchange="formData.attacks[' + i + '].damages[' + j + '].dice=this.value" placeholder="1d8+2" style="width:80px" title="Damage dice">';
+        html += '<input type="text" value="' + esc(dm.type) + '" onchange="formData.attacks[' + i + '].damages[' + j + '].type=this.value" placeholder="slashing" style="width:80px" title="Damage type">';
+        html += '<input type="text" value="' + esc(dm.note || '') + '" onchange="formData.attacks[' + i + '].damages[' + j + '].note=this.value" placeholder="note" style="flex:1" title="Damage note">';
+        html += '<button class="btn-remove" onclick="formData.attacks[' + i + '].damages.splice(' + j + ',1);renderTemplateForm()">×</button>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+    html += '<button class="btn-add-row btn-sm" onclick="formData.attacks[' + i + '].damages.push({dice:\'\',type:\'\',note:\'\'});renderTemplateForm()" style="margin-left:0.75rem">+ Damage</button>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '<button class="btn-add-row" onclick="formData.attacks.push({name:\'\',bonus:0,note:\'\',damages:[{dice:\'\',type:\'\',note:\'\'}]});renderTemplateForm()">+ Add Attack</button>';
+  html += '</div>';
+
+  // ── Features ──
+  html += '<div class="form-section"><div class="form-section-title">Features & Abilities</div>';
+  if (d.features.length > 0) {
+    html += '<div class="dyn-header">';
+    html += '<span class="dyn-label" style="flex:2">Name</span>';
+    html += '<span class="dyn-label" style="width:100px">Recharge</span>';
+    html += '<span class="dyn-label" style="width:55px">Uses</span>';
+    html += '<span style="width:30px"></span>';
+    html += '</div>';
+  }
+  d.features.forEach((f, i) => {
+    html += '<div class="dyn-row" style="flex-direction:column">';
+    html += '<div style="display:flex;gap:0.4rem;width:100%">';
+    html += '<input type="text" value="' + esc(f.name) + '" onchange="formData.features[' + i + '].name=this.value" placeholder="Feature name" style="flex:2">';
+    html += '<input type="text" value="' + esc(f.recharge || '') + '" onchange="formData.features[' + i + '].recharge=this.value||null" placeholder="5-6" style="width:100px">';
+    html += '<input type="number" value="' + (f.usesMax || '') + '" onchange="formData.features[' + i + '].usesMax=+this.value||null;formData.features[' + i + '].uses=+this.value||null" placeholder="#" style="width:55px">';
+    html += '<button class="btn-remove" onclick="formData.features.splice(' + i + ',1);renderTemplateForm()">×</button>';
+    html += '</div>';
+    html += '<textarea onchange="formData.features[' + i + '].desc=this.value" placeholder="Description..." style="width:100%">' + esc(f.desc) + '</textarea>';
+    html += '</div>';
+  });
+  html += '<button class="btn-add-row" onclick="formData.features.push({name:\'\',desc:\'\',recharge:null,uses:null,usesMax:null});renderTemplateForm()">+ Add Feature</button>';
+  html += '</div>';
+
+  // ── Legendary ──
+  html += '<div class="form-section"><div class="form-section-title">Legendary</div>';
+  html += '<div class="form-grid cols-2">';
+  html += formField('Actions/Round', 'number', d.legendaryActionBudget, 'formData.legendaryActionBudget=+this.value');
+  html += formField('Resistances', 'number', d.legendaryResistances, 'formData.legendaryResistances=+this.value');
+  html += '</div>';
+  if (d.legendaryActionBudget > 0 || d.legendaryActions.length > 0) {
+    html += '<div style="margin-top:0.5rem">';
+    if (d.legendaryActions.length > 0) {
+      html += '<div class="dyn-header">';
+      html += '<span class="dyn-label" style="flex:2">Name</span>';
+      html += '<span class="dyn-label" style="width:55px">Cost</span>';
+      html += '<span style="width:30px"></span>';
+      html += '</div>';
+    }
+    d.legendaryActions.forEach((la, i) => {
+      html += '<div class="dyn-row" style="flex-direction:column">';
+      html += '<div style="display:flex;gap:0.4rem;width:100%">';
+      html += '<input type="text" value="' + esc(la.name) + '" onchange="formData.legendaryActions[' + i + '].name=this.value" placeholder="Action name" style="flex:2">';
+      html += '<input type="number" value="' + la.cost + '" onchange="formData.legendaryActions[' + i + '].cost=+this.value" placeholder="#" style="width:55px">';
+      html += '<button class="btn-remove" onclick="formData.legendaryActions.splice(' + i + ',1);renderTemplateForm()">×</button>';
+      html += '</div>';
+      html += '<textarea onchange="formData.legendaryActions[' + i + '].desc=this.value" placeholder="Description..." style="width:100%">' + esc(la.desc) + '</textarea>';
+      html += '</div>';
+    });
+    html += '<button class="btn-add-row" onclick="formData.legendaryActions.push({name:\'\',cost:1,desc:\'\'});renderTemplateForm()">+ Add Legendary Action</button>';
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // ── Tactics ──
+  html += '<div class="form-section"><div class="form-section-title">Tactics & Notes</div>';
+  html += '<div class="form-field"><textarea rows="3" onchange="formData.tactics=this.value" placeholder="How this monster fights: target priority, positioning, retreat conditions...">' + esc(d.tactics) + '</textarea>';
+  html += '</div></div>';
+
+  // ── Form Actions ──
+  html += '<div class="form-actions">';
+  html += '<button class="btn-action" onclick="saveTemplate()">Save</button>';
+  html += '<button onclick="closeTemplateForm()">Close</button>';
+  html += '<button class="btn-danger" onclick="cancelTemplateForm()">Cancel</button>';
+  html += '</div>';
+
+  el.innerHTML = html;
+  el.scrollTop = 0;
+}
+
+function formField(label, type, value, onchange, placeholder, options) {
+  let html = '<div class="form-field"><label>' + esc(label) + '</label>';
+  if (type === 'select') {
+    html += '<select onchange="' + onchange + '">';
+    (options || []).forEach(opt => {
+      html += '<option value="' + esc(opt) + '"' + (value === opt ? ' selected' : '') + '>' + esc(opt) + '</option>';
+    });
+    html += '</select>';
+  } else if (type === 'number') {
+    html += '<input type="number" value="' + (value ?? '') + '" onchange="' + onchange + '"' + (placeholder ? ' placeholder="' + esc(placeholder) + '"' : '') + '>';
+  } else {
+    html += '<input type="text" value="' + esc(value || '') + '" onchange="' + onchange + '"' + (placeholder ? ' placeholder="' + esc(placeholder) + '"' : '') + '>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function hpFromFormula(mode) {
+  const formula = formData.hpFormula.trim();
+  if (!formula) { setStatus('Enter an HP formula first.', 'warning'); return; }
+  const match = formula.match(/^(\d+)d(\d+)\s*([+-]\s*\d+)?$/i);
+  if (!match) { setStatus('Invalid formula: ' + formula, 'error'); return; }
+  const count = parseInt(match[1]);
+  const sides = parseInt(match[2]);
+  const modifier = match[3] ? parseInt(match[3].replace(/\s/g, '')) : 0;
+
+  if (mode === 'avg') {
+    const avg = Math.floor(count * (sides + 1) / 2) + modifier;
+    formData.hpMax = Math.max(1, avg);
+    setStatus('HP set to average: ' + formData.hpMax, 'success');
+  } else {
+    const result = rollDice(formula);
+    formData.hpMax = Math.max(1, result.total);
+    setStatus('HP rolled: ' + result.text, 'success');
+  }
+  renderTemplateForm();
+}
+
+function saveTemplate() {
+  if (!formData.name.trim()) {
+    setStatus('Monster name is required.', 'error');
+    return;
+  }
+  const idx = state.templates.findIndex(t => t.id === formData.id);
+  if (idx >= 0) {
+    state.templates[idx] = deepClone(formData);
+    setStatus('Monster saved: ' + formData.name, 'success');
+  } else {
+    state.templates.push(deepClone(formData));
+    setStatus('Monster saved: ' + formData.name, 'success');
+  }
+  save('templates');
+  savedFormSnapshot = deepClone(formData);
+}
+
+function closeTemplateForm() {
+  if (isFormDirty()) {
+    if (!confirm('You have unsaved changes. Close without saving?')) return;
+  }
+  formMode = null;
+  formData = null;
+  savedFormSnapshot = null;
+  setStatus('', '');
+  render();
+}
+
+function cancelTemplateForm() {
+  if (isFormDirty()) {
+    if (!confirm('Discard all changes?')) return;
+  }
+  formMode = null;
+  formData = null;
+  savedFormSnapshot = null;
+  setStatus('', '');
+  render();
+}
+
+function deleteTemplate(id) {
+  const t = state.templates.find(t => t.id === id);
+  if (!t) return;
+  if (!confirm('Delete "' + t.name + '"? This cannot be undone.')) return;
+  state.templates = state.templates.filter(t => t.id !== id);
+  save('templates');
+  setStatus('Deleted: ' + t.name, 'warning');
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Encounter List ──
+// ═══════════════════════════════════════════════════════════════
+
+function renderEncounterList() {
+  const el = document.getElementById('viewEncounters');
+  document.getElementById('btnNew').style.display = '';
+
+  const filtered = state.encounters.filter(e =>
+    !searchQuery || e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (e.campaign && e.campaign.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  let html = '<div class="search-bar"><input type="text" placeholder="Search encounters..." value="' + esc(searchQuery) + '" oninput="searchQuery=this.value;renderEncounterList()"></div>';
+
+  if (filtered.length === 0) {
+    if (state.encounters.length === 0) {
+      html += '<div class="empty-state"><p>No encounters yet.</p><p>Click <strong>+ New Encounter</strong> to build one.</p></div>';
+    } else {
+      html += '<div class="empty-state"><p>No encounters match your search.</p></div>';
+    }
+  } else {
+    filtered.forEach(e => {
+      const meta = [];
+      if (e.campaign) meta.push(e.campaign);
+      if (e.location) meta.push(e.location);
+      const totalMonsters = e.monsters.reduce((sum, m) => sum + m.qty, 0);
+      if (totalMonsters) meta.push(totalMonsters + ' monster' + (totalMonsters > 1 ? 's' : ''));
+
+      html += '<div class="card">';
+      html += '<div class="card-header">';
+      html += '<span class="card-title">' + esc(e.name || 'Unnamed') + '</span>';
+      html += '<div class="card-actions">';
+      html += '<button class="btn-sm btn-action" onclick="startCombat(\'' + e.id + '\')" title="Start combat">Combat</button>';
+      html += '<button class="btn-sm" onclick="showEncounterForm(\'' + e.id + '\')">Edit</button>';
+      html += '<button class="btn-sm btn-danger" onclick="deleteEncounter(\'' + e.id + '\')">Delete</button>';
+      html += '</div></div>';
+      html += '<div class="card-meta">' + meta.map(m => '<span>' + esc(m) + '</span>').join('') + '</div>';
+      html += '</div>';
+    });
+  }
+
+  el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Encounter Form ──
+// ═══════════════════════════════════════════════════════════════
+
+function showEncounterForm(id) {
+  formMode = 'encounter';
+  if (id) {
+    const e = state.encounters.find(e => e.id === id);
+    if (!e) { setStatus('Encounter not found.', 'error'); return; }
+    formData = deepClone(e);
+  } else {
+    formData = newEncounter();
+  }
+  savedFormSnapshot = deepClone(formData);
+  document.getElementById('btnNew').style.display = 'none';
+  renderEncounterForm();
+}
+
+function renderEncounterForm() {
+  const d = formData;
+  const el = document.getElementById('viewEncounters');
+
+  let html = '';
+
+  // ── Details ──
+  html += '<div class="form-section"><div class="form-section-title">Encounter Details</div>';
+  html += '<div class="form-grid cols-3">';
+  html += formField('Name *', 'text', d.name, 'formData.name=this.value', 'Ambush at Cragmaw');
+  html += formField('Campaign', 'text', d.campaign, 'formData.campaign=this.value', 'Lost Mines');
+  html += formField('Location', 'text', d.location, 'formData.location=this.value', 'Forest Road');
+  html += '</div>';
+  html += '<div style="margin-top:0.5rem">';
+  html += '<div class="form-field"><label>Notes</label>';
+  html += '<textarea onchange="formData.notes=this.value" placeholder="Encounter notes...">' + esc(d.notes) + '</textarea>';
+  html += '</div></div></div>';
+
+  // ── Monsters ──
+  html += '<div class="form-section"><div class="form-section-title">Monsters</div>';
+  if (state.templates.length === 0) {
+    html += '<p style="font-size:0.8rem;color:var(--text-dim)">No monsters yet. Create some in the Monsters tab first.</p>';
+  } else {
+    html += '<div style="display:flex;gap:0.4rem;margin-bottom:0.5rem">';
+    html += '<select id="monsterPicker" style="flex:1;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.8rem">';
+    state.templates.forEach(t => {
+      html += '<option value="' + t.id + '">' + esc(t.name) + ' (CR ' + esc(t.cr || '?') + ')</option>';
+    });
+    html += '</select>';
+    html += '<input type="number" id="monsterQty" value="1" min="1" max="20" style="width:55px;padding:0.4rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.8rem;font-family:var(--mono);text-align:center">';
+    html += '<button class="btn-sm" onclick="addMonsterToEncounter()">Add</button>';
+    html += '</div>';
+  }
+  d.monsters.forEach((m, i) => {
+    const t = state.templates.find(t => t.id === m.templateId);
+    html += '<div class="monster-pick">';
+    html += '<span class="pick-name">' + esc(t ? t.name : '(deleted template)') + '</span>';
+    html += '<input type="number" class="pick-qty" value="' + m.qty + '" min="1" max="20" onchange="formData.monsters[' + i + '].qty=+this.value">';
+    html += '<button class="btn-sm btn-remove" onclick="formData.monsters.splice(' + i + ',1);renderEncounterForm()" style="border:none">×</button>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // ── Form Actions ──
+  html += '<div class="form-actions">';
+  html += '<button class="btn-action" onclick="saveEncounter()">Save</button>';
+  html += '<button onclick="closeEncounterForm()">Close</button>';
+  html += '<button class="btn-danger" onclick="cancelEncounterForm()">Cancel</button>';
+  html += '</div>';
+
+  el.innerHTML = html;
+  el.scrollTop = 0;
+}
+
+function addMonsterToEncounter() {
+  const select = document.getElementById('monsterPicker');
+  const qtyInput = document.getElementById('monsterQty');
+  if (!select) return;
+  const templateId = select.value;
+  const qty = Math.max(1, parseInt(qtyInput.value) || 1);
+
+  // Check if already added — increment qty instead
+  const existing = formData.monsters.find(m => m.templateId === templateId);
+  if (existing) {
+    existing.qty += qty;
+  } else {
+    formData.monsters.push({ templateId, qty });
+  }
+  renderEncounterForm();
+}
+
+function saveEncounter() {
+  if (!formData.name.trim()) {
+    setStatus('Encounter name is required.', 'error');
+    return;
+  }
+  const idx = state.encounters.findIndex(e => e.id === formData.id);
+  if (idx >= 0) {
+    state.encounters[idx] = deepClone(formData);
+    setStatus('Encounter saved: ' + formData.name, 'success');
+  } else {
+    state.encounters.push(deepClone(formData));
+    setStatus('Encounter saved: ' + formData.name, 'success');
+  }
+  save('encounters');
+  savedFormSnapshot = deepClone(formData);
+}
+
+function closeEncounterForm() {
+  if (isFormDirty()) {
+    if (!confirm('You have unsaved changes. Close without saving?')) return;
+  }
+  formMode = null;
+  formData = null;
+  savedFormSnapshot = null;
+  setStatus('', '');
+  render();
+}
+
+function cancelEncounterForm() {
+  if (isFormDirty()) {
+    if (!confirm('Discard all changes?')) return;
+  }
+  formMode = null;
+  formData = null;
+  savedFormSnapshot = null;
+  setStatus('', '');
+  render();
+}
+
+function deleteEncounter(id) {
+  const e = state.encounters.find(e => e.id === id);
+  if (!e) return;
+  if (!confirm('Delete encounter "' + e.name + '"?')) return;
+  state.encounters = state.encounters.filter(e => e.id !== id);
+  save('encounters');
+  setStatus('Deleted: ' + e.name, 'warning');
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Party List ──
+// ═══════════════════════════════════════════════════════════════
+
+function renderPartyList() {
+  const el = document.getElementById('viewParties');
+  document.getElementById('btnNew').style.display = '';
+
+  let html = '';
+
+  if (state.parties.length === 0) {
+    html += '<div class="empty-state"><p>No parties yet.</p><p>Click <strong>+ New Party</strong> to create one.</p></div>';
+  } else {
+    state.parties.forEach(p => {
+      html += '<div class="card">';
+      html += '<div class="card-header">';
+      html += '<span class="card-title">' + esc(p.name || 'Unnamed') + '</span>';
+      html += '<div class="card-actions">';
+      html += '<button class="btn-sm" onclick="showPartyForm(\'' + p.id + '\')">Edit</button>';
+      html += '<button class="btn-sm btn-danger" onclick="deleteParty(\'' + p.id + '\')">Delete</button>';
+      html += '</div></div>';
+      html += '<div class="card-meta"><span>' + p.players.length + ' player' + (p.players.length !== 1 ? 's' : '') + '</span>';
+      if (p.players.length > 0) html += '<span>' + p.players.map(n => esc(n)).join(', ') + '</span>';
+      html += '</div>';
+      html += '</div>';
+    });
+  }
+
+  el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Party Form ──
+// ═══════════════════════════════════════════════════════════════
+
+function showPartyForm(id) {
+  formMode = 'party';
+  if (id) {
+    const p = state.parties.find(p => p.id === id);
+    if (!p) { setStatus('Party not found.', 'error'); return; }
+    formData = deepClone(p);
+  } else {
+    formData = newParty();
+  }
+  savedFormSnapshot = deepClone(formData);
+  document.getElementById('btnNew').style.display = 'none';
+  renderPartyForm();
+}
+
+function renderPartyForm() {
+  const d = formData;
+  const el = document.getElementById('viewParties');
+
+  let html = '';
+
+  html += '<div class="form-section"><div class="form-section-title">Party Details</div>';
+  html += '<div class="form-grid cols-2">';
+  html += formField('Party Name *', 'text', d.name, 'formData.name=this.value', 'Tuesday Night Crew');
+  html += '<div class="form-field"></div>';
+  html += '</div></div>';
+
+  // ── Players ──
+  html += '<div class="form-section"><div class="form-section-title">Players</div>';
+  html += '<div style="display:flex;gap:0.4rem;margin-bottom:0.5rem">';
+  html += '<input type="text" id="newPlayerInput" placeholder="Player name" style="flex:1;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.8rem" onkeydown="if(event.key===\'Enter\')addPlayerToParty()">';
+  html += '<button class="btn-sm" onclick="addPlayerToParty()">Add</button>';
+  html += '</div>';
+
+  // Roster chips
+  if (state.players.length > 0) {
+    html += '<div class="roster-grid">';
+    state.players.forEach((p, idx) => {
+      const selected = d.players.includes(p);
+      html += '<span class="roster-chip ' + (selected ? 'selected' : '') + '" onclick="togglePlayerInParty(' + idx + ')">';
+      html += esc(p);
+      html += '<span class="chip-remove" onclick="event.stopPropagation();removeFromRoster(' + idx + ')" title="Remove from roster">×</span>';
+      html += '</span>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // ── Form Actions ──
+  html += '<div class="form-actions">';
+  html += '<button class="btn-action" onclick="saveParty()">Save</button>';
+  html += '<button onclick="closePartyForm()">Close</button>';
+  html += '<button class="btn-danger" onclick="cancelPartyForm()">Cancel</button>';
+  html += '</div>';
+
+  el.innerHTML = html;
+  el.scrollTop = 0;
+}
+
+function addPlayerToParty() {
+  const input = document.getElementById('newPlayerInput');
+  if (!input) return;
+  const name = input.value.trim();
+  if (!name) return;
+  if (!formData.players.includes(name)) formData.players.push(name);
+  if (!state.players.includes(name)) { state.players.push(name); save('players'); }
+  renderPartyForm();
+}
+
+function togglePlayerInParty(rosterIdx) {
+  const name = state.players[rosterIdx];
+  const idx = formData.players.indexOf(name);
+  if (idx >= 0) formData.players.splice(idx, 1);
+  else formData.players.push(name);
+  renderPartyForm();
+}
+
+function removeFromRoster(rosterIdx) {
+  const name = state.players[rosterIdx];
+  if (!confirm('Remove "' + name + '" from the player roster?')) return;
+  state.players = state.players.filter(p => p !== name);
+  formData.players = formData.players.filter(p => p !== name);
+  save('players');
+  renderPartyForm();
+}
+
+function saveParty() {
+  if (!formData.name.trim()) {
+    setStatus('Party name is required.', 'error');
+    return;
+  }
+  const idx = state.parties.findIndex(p => p.id === formData.id);
+  if (idx >= 0) {
+    state.parties[idx] = deepClone(formData);
+    setStatus('Party saved: ' + formData.name, 'success');
+  } else {
+    state.parties.push(deepClone(formData));
+    setStatus('Party saved: ' + formData.name, 'success');
+  }
+  save('parties');
+  savedFormSnapshot = deepClone(formData);
+}
+
+function closePartyForm() {
+  if (isFormDirty()) {
+    if (!confirm('You have unsaved changes. Close without saving?')) return;
+  }
+  formMode = null;
+  formData = null;
+  savedFormSnapshot = null;
+  setStatus('', '');
+  render();
+}
+
+function cancelPartyForm() {
+  if (isFormDirty()) {
+    if (!confirm('Discard all changes?')) return;
+  }
+  formMode = null;
+  formData = null;
+  savedFormSnapshot = null;
+  setStatus('', '');
+  render();
+}
+
+function deleteParty(id) {
+  const p = state.parties.find(p => p.id === id);
+  if (!p) return;
+  if (!confirm('Delete party "' + p.name + '"?')) return;
+  state.parties = state.parties.filter(p => p.id !== id);
+  save('parties');
+  setStatus('Deleted: ' + p.name, 'warning');
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Combat View (Phase 2 placeholder) ──
+// ═══════════════════════════════════════════════════════════════
+
+function renderCombatView() {
+  const el = document.getElementById('viewCombat');
+
+  if (state.combat) {
+    el.innerHTML = '<div class="empty-state"><p>Combat resume coming in Phase 2.</p></div>';
+    return;
+  }
+
+  if (pendingCombatEncounterId) {
+    el.innerHTML = renderCombatPartySelect();
+    return;
+  }
+
+  el.innerHTML = '<div class="empty-state"><p>No active combat.</p><p>Go to <strong>Encounters</strong> and click <strong>Combat</strong> to start one.</p></div>';
+}
+
+let pendingCombatEncounterId = null;
+
+function startCombat(encounterId) {
+  const enc = state.encounters.find(e => e.id === encounterId);
+  if (!enc) { setStatus('Encounter not found.', 'error'); return; }
+  if (enc.monsters.length === 0) {
+    setStatus('Add monsters to the encounter first.', 'warning');
+    return;
+  }
+  if (state.parties.length === 0) {
+    setStatus('Create a party in the Parties tab first.', 'warning');
+    return;
+  }
+  pendingCombatEncounterId = encounterId;
+  switchView('combat');
+}
+
+function renderCombatPartySelect() {
+  const enc = state.encounters.find(e => e.id === pendingCombatEncounterId);
+  if (!enc) return '<div class="empty-state"><p>Encounter not found.</p></div>';
+
+  let html = '<div class="form-section"><div class="form-section-title">Start Combat: ' + esc(enc.name) + '</div>';
+  const totalMonsters = enc.monsters.reduce((sum, m) => sum + m.qty, 0);
+  html += '<p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem">' + totalMonsters + ' monster' + (totalMonsters > 1 ? 's' : '') + (enc.location ? ' at ' + esc(enc.location) : '') + '</p>';
+  html += '<div class="form-section-title">Select Party</div>';
+
+  state.parties.forEach(p => {
+    html += '<div class="card" style="cursor:pointer" onclick="launchCombat(\'' + p.id + '\')">';
+    html += '<div class="card-header">';
+    html += '<span class="card-title">' + esc(p.name || 'Unnamed') + '</span>';
+    html += '<button class="btn-sm btn-action">Select</button>';
+    html += '</div>';
+    html += '<div class="card-meta"><span>' + p.players.length + ' player' + (p.players.length !== 1 ? 's' : '') + '</span><span>' + esc(p.players.join(', ')) + '</span></div>';
+    html += '</div>';
+  });
+
+  html += '<div style="margin-top:1rem"><button onclick="pendingCombatEncounterId=null;render()">Cancel</button></div>';
+  html += '</div>';
+  return html;
+}
+
+function launchCombat(partyId) {
+  const party = state.parties.find(p => p.id === partyId);
+  if (!party) return;
+  setStatus('Combat system coming in Phase 2. Party: ' + party.name, 'warning');
+  pendingCombatEncounterId = null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Init ──
+// ═══════════════════════════════════════════════════════════════
+
+load();
+render();
+</script>
+
+</body>
+</html>

@@ -16,7 +16,9 @@ tools/
 ├── squishtext/index.html         # Text compression/sharing tool
 ├── squishtext/CLAUDE.md
 ├── gsheet_md_exporter/index.html # D&D character sheet exporter
-└── gsheet_md_exporter/CLAUDE.md
+├── gsheet_md_exporter/CLAUDE.md
+├── encounter/index.html          # D&D encounter manager & initiative tracker
+└── encounter/CLAUDE.md
 ```
 
 The portal (`index.html` at root) is a static landing page with cards linking to each tool.
