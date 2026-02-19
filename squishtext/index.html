@@ -594,10 +594,15 @@ function downloadBlob(text, filename) {
   URL.revokeObjectURL(url);
 }
 
+function looksLikePayload(text) {
+  return text.trimStart().startsWith('[SquishText]');
+}
+
 function saveInput() {
   const text = document.getElementById('inputArea').value;
   if (!text) return;
-  const filename = 'squishtext-input.txt';
+  const ext = looksLikePayload(text) ? '.squishtext' : '.txt';
+  const filename = 'squishtext-input' + ext;
   downloadBlob(text, filename);
   setStatus('Saved as ' + filename, 'success');
 }
