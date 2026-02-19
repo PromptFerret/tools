@@ -202,23 +202,8 @@
 
   textarea::placeholder { color: var(--text-dim); }
 
-  .output-text {
-    flex: 1;
-    padding: 1rem 1.25rem;
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 0.82rem;
-    line-height: 1.55;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    word-break: break-all;
-    min-height: 0;
-  }
-
-  .output-text.placeholder {
-    color: var(--text-dim);
+  textarea[readonly] {
+    cursor: default;
   }
 
   /* ── Footer ── */
@@ -292,7 +277,7 @@
           <button onclick="copyOutput()" id="paneCopyBtn" disabled style="visibility:hidden">Copy</button>
         </span>
       </div>
-      <div id="outputArea" class="output-text placeholder">Output will appear here.</div>
+      <textarea id="outputArea" readonly placeholder="Output will appear here."></textarea>
     </div>
   </div>
 </div>
@@ -466,14 +451,7 @@ function enableCopy() {
 
 // ── Display ──
 function showOutput(text) {
-  const el = document.getElementById('outputArea');
-  if (text) {
-    el.textContent = text;
-    el.classList.remove('placeholder');
-  } else {
-    el.textContent = 'Output will appear here.';
-    el.classList.add('placeholder');
-  }
+  document.getElementById('outputArea').value = text || '';
 }
 
 function showStats(charCount, byteCount, encodedLen) {
