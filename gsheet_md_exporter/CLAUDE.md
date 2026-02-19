@@ -24,9 +24,15 @@ The tool fetches data from up to **4 tabs** per spreadsheet:
 **Tabs NOT processed** (backend/reference data used by sheet formulas):
 - `?`, `Attack Info`, `Gear Info`, `Race Info`, `Class Info`
 
-**Tab discovery** uses the `/htmlview` endpoint which contains a JS `items.push({name, gid})` array. This is ~36KB but is the lightest endpoint that returns tab metadata. The gid in the user's URL is ignored — the tool always uses the first tab as main and finds others by name.
+**Tab discovery** uses the `/htmlview` endpoint which contains a JS `items.push({name, gid})` array. This is ~36KB but is the lightest endpoint that returns tab metadata. The tool always uses the first discovered tab as main; if tab discovery fails, it falls back to the gid from the user's URL.
 
-Additional, Inventory, and Spell Preparation tabs are all fetched **in parallel** after the main sheet.
+Additional, Inventory, Spell Preparation, and any unknown/custom tabs are all fetched **in parallel** after the main sheet.
+
+**Custom tab auto-detection**: Unknown tabs (not matching any known name or ignored list) are fetched and inspected via `detectTabType()`. Row 1 headers are checked:
+- `#` at col 8, `ITEM` at col 9, `COST` at col 17, `WEIGHT` at col 20 → detected as **inventory** type
+- `NAME` at col 1, `ATK BONUS` at col 8, `DAMAGE/TYPE` at col 12 → detected as **additional** type
+
+Auto-detected inventory tabs are extracted as `extraInventories` and rendered as additional inventory sections in the markdown output. Auto-detected additional tabs are processed for attacks, spells, etc.
 
 ### Why CSV Export (not gviz)
 The tool originally used the Google Visualization API (gviz) with JSONP, but we switched to direct CSV export because:
@@ -54,6 +60,18 @@ The tool originally used the Google Visualization API (gviz) with JSONP, but we 
 - **JSON**: structured object with all the same fields
 - Toggle between Preview/MD/JSON with toolbar buttons
 - "Copy" button always copies the raw markdown (or JSON when in JSON mode), even from Preview
+- **Download buttons** ("⬇ MD" / "⬇ JSON"): save output as local files, disabled until a sheet is processed
+  - Filenames derived from character name, sanitized (special chars stripped, spaces → underscores)
+  - Uses Blob + object URL for client-side download (no server needed)
+- Enter key in the URL input triggers Fetch
+
+### Sheet Tabs UI
+After tab discovery, a pill-style bar appears below the status bar showing all discovered tabs:
+- **Active** tabs (highlighted with accent border): tabs that were fetched and used in the output
+- **Ignored** tabs (dimmed): known backend/reference tabs (`?`, `Attack Info`, etc.)
+- **Other** tabs: discovered but not matching any known or auto-detected structure
+- Tooltips describe each tab's role (e.g., "Extended attacks, spells, multiclass, defenses")
+- Auto-detected custom tabs show their detected type in the tooltip (e.g., "Inventory container (auto-detected)")
 
 ## v4.0 Layout — Complete Position Map (CSV)
 
@@ -363,7 +381,7 @@ When no spell prep (main/Additional fallback):
 ## Development Philosophy
 
 ### Prefer Local Execution Over Agent Processing
-When data needs to be fetched, parsed, transformed, or verified, **write and run a local script** (Python or Node) on the user's machine rather than doing it manually in conversation. A local script executes instantly at zero token cost; the same work done step-by-step by the agent consumes thousands of tokens for an identical result. The user's machine is Windows — use Python or Node, not bash.
+When data needs to be fetched, parsed, transformed, or verified, **write and run a local script** (Python or Node) on the user's machine rather than doing it manually in conversation. A local script executes instantly at zero token cost; the same work done step-by-step by the agent consumes thousands of tokens for an identical result.
 
 Examples of tasks that should always run locally:
 - Downloading and inspecting CSVs or API responses

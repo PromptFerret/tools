@@ -321,6 +321,9 @@
   <button class="btn-toggle" id="btnJson" onclick="setFormat('json')">JSON</button>
   <div class="sep"></div>
   <button onclick="copyOutput()">Copy</button>
+  <div class="sep"></div>
+  <button id="dlMd" onclick="downloadMd()" disabled>⬇ MD</button>
+  <button id="dlJson" onclick="downloadJson()" disabled>⬇ JSON</button>
 </div>
 
 <div id="statusEl"></div>
@@ -365,6 +368,37 @@ function copyOutput() {
     setStatus('Copied ' + (currentFormat === 'json' ? 'JSON' : 'Markdown') + ' to clipboard!', 'success');
     setTimeout(() => { if (document.getElementById('statusEl').textContent.includes('clipboard')) document.getElementById('statusEl').textContent = ''; }, 1500);
   });
+}
+
+function downloadFile(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function sanitizeFilename(name) {
+  return (name || 'character').replace(/[^a-zA-Z0-9_\- ]/g, '').trim().replace(/\s+/g, '_');
+}
+
+function downloadMd() {
+  if (!characterData || !cachedMarkdown) return;
+  const name = sanitizeFilename(characterData.name);
+  downloadFile(cachedMarkdown, `${name}.md`, 'text/markdown');
+  setStatus(`Downloaded ${name}.md`, 'success');
+}
+
+function downloadJson() {
+  if (!characterData) return;
+  const name = sanitizeFilename(characterData.name);
+  const json = renderJSON(characterData);
+  downloadFile(json, `${name}.json`, 'application/json');
+  setStatus(`Downloaded ${name}.json`, 'success');
 }
 
 // ── URL Parsing ──
@@ -1425,6 +1459,8 @@ function renderOutput() {
   const el = document.getElementById('output');
   el.classList.remove('placeholder');
   cachedMarkdown = renderMarkdown(characterData);
+  document.getElementById('dlMd').disabled = false;
+  document.getElementById('dlJson').disabled = false;
 
   if (currentFormat === 'preview') {
     el.className = 'preview';
