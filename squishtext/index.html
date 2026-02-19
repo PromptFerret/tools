@@ -263,7 +263,10 @@
   <div class="sep"></div>
   <button id="copyBtn" onclick="copyOutput()" disabled>Copy</button>
   <button id="linkBtn" onclick="copyLink()" disabled>Link</button>
+  <div class="sep"></div>
+  <button id="openBtn" onclick="document.getElementById('fileInput').click()">Open</button>
   <button id="clearBtn" onclick="clearAll()">Clear</button>
+  <input type="file" id="fileInput" style="display:none" onchange="openFile(this)">
 </div>
 
 <div id="statusEl"></div>
@@ -274,14 +277,20 @@
     <div class="pane">
       <div class="pane-header">
         <span>Input</span>
-        <button onclick="copyInput()" id="inputCopyBtn" disabled style="visibility:hidden">Copy</button>
+        <span>
+          <button onclick="saveInput()" id="inputSaveBtn" disabled style="visibility:hidden">Save</button>
+          <button onclick="copyInput()" id="inputCopyBtn" disabled style="visibility:hidden">Copy</button>
+        </span>
       </div>
       <textarea id="inputArea" placeholder="Paste text to squish, or an encoded string to unsquish..." oninput="onInput()"></textarea>
     </div>
     <div class="pane">
       <div class="pane-header">
         <span>Output</span>
-        <button onclick="copyOutput()" id="paneCopyBtn" disabled style="visibility:hidden">Copy</button>
+        <span>
+          <button onclick="saveOutput()" id="outputSaveBtn" disabled style="visibility:hidden">Save</button>
+          <button onclick="copyOutput()" id="paneCopyBtn" disabled style="visibility:hidden">Copy</button>
+        </span>
       </div>
       <div id="outputArea" class="output-text placeholder">Output will appear here.</div>
     </div>
@@ -297,6 +306,7 @@
 // ── State ──
 let outputText = '';
 let rawBase64 = ''; // raw base64 without header, used for link generation
+let lastOp = ''; // 'squish' or 'unsquish' — determines save file extension
 const noSupport = typeof CompressionStream === 'undefined' || typeof DecompressionStream === 'undefined';
 const HEADER = '[SquishText] To decode, base64-decode the string below then inflate (deflate-raw). Or paste at https://promptferret.github.io/tools/squishtext/\n';
 const BASE_URL = 'https://promptferret.github.io/tools/squishtext/';
@@ -311,6 +321,8 @@ function onInput() {
   const hasInput = !!document.getElementById('inputArea').value.trim();
   document.getElementById('squishBtn').disabled = !hasInput || noSupport;
   document.getElementById('unsquishBtn').disabled = !hasInput || noSupport;
+  document.getElementById('inputSaveBtn').disabled = !hasInput;
+  document.getElementById('inputSaveBtn').style.visibility = hasInput ? 'visible' : 'hidden';
   document.getElementById('inputCopyBtn').disabled = !hasInput;
   document.getElementById('inputCopyBtn').style.visibility = hasInput ? 'visible' : 'hidden';
 }
@@ -389,6 +401,7 @@ async function doSquish() {
   try {
     const encoded = await compress(input);
     rawBase64 = encoded;
+    lastOp = 'squish';
     const payload = HEADER + encoded;
     outputText = payload;
     showOutput(payload);
@@ -415,6 +428,7 @@ async function doUnsquish() {
   try {
     const decoded = await decompress(input);
     outputText = decoded;
+    lastOp = 'unsquish';
     showOutput(decoded);
     const cleanInput = input.trim().replace(/[\r\n\s]/g, '');
     showStats(decoded.length, new TextEncoder().encode(decoded).length, cleanInput.length);
@@ -444,6 +458,8 @@ function setButtons(enabled) {
 function enableCopy() {
   document.getElementById('copyBtn').disabled = false;
   document.getElementById('linkBtn').disabled = !rawBase64;
+  document.getElementById('outputSaveBtn').disabled = false;
+  document.getElementById('outputSaveBtn').style.visibility = 'visible';
   document.getElementById('paneCopyBtn').disabled = false;
   document.getElementById('paneCopyBtn').style.visibility = 'visible';
 }
@@ -549,11 +565,57 @@ async function copyOutput() {
   }
 }
 
+// ── File Open / Save ──
+function openFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function() {
+    document.getElementById('inputArea').value = reader.result;
+    onInput();
+    setStatus('Opened ' + file.name + ' (' + file.size.toLocaleString() + ' bytes)', 'success');
+  };
+  reader.onerror = function() {
+    setStatus('Failed to read file.', 'error');
+  };
+  reader.readAsText(file);
+  input.value = ''; // reset so same file can be re-opened
+}
+
+function downloadBlob(text, filename) {
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function saveInput() {
+  const text = document.getElementById('inputArea').value;
+  if (!text) return;
+  const filename = 'squishtext-input.txt';
+  downloadBlob(text, filename);
+  setStatus('Saved as ' + filename, 'success');
+}
+
+function saveOutput() {
+  if (!outputText) return;
+  const ext = lastOp === 'squish' ? '.squishtext' : '.txt';
+  const filename = 'squishtext-output' + ext;
+  downloadBlob(outputText, filename);
+  setStatus('Saved as ' + filename, 'success');
+}
+
 // ── Clear ──
 function clearAll() {
   document.getElementById('inputArea').value = '';
   outputText = '';
   rawBase64 = '';
+  lastOp = '';
   showOutput('');
   document.getElementById('statsBar').innerHTML = '';
   document.getElementById('statusEl').textContent = '';
@@ -561,8 +623,12 @@ function clearAll() {
   document.getElementById('unsquishBtn').disabled = true;
   document.getElementById('copyBtn').disabled = true;
   document.getElementById('linkBtn').disabled = true;
+  document.getElementById('inputSaveBtn').disabled = true;
+  document.getElementById('inputSaveBtn').style.visibility = 'hidden';
   document.getElementById('inputCopyBtn').disabled = true;
   document.getElementById('inputCopyBtn').style.visibility = 'hidden';
+  document.getElementById('outputSaveBtn').disabled = true;
+  document.getElementById('outputSaveBtn').style.visibility = 'hidden';
   document.getElementById('paneCopyBtn').disabled = true;
   document.getElementById('paneCopyBtn').style.visibility = 'hidden';
   // Clear hash without triggering navigation
@@ -578,6 +644,7 @@ function clearAll() {
   try {
     const decoded = await decompress(hash);
     outputText = decoded;
+    lastOp = 'unsquish';
     rawBase64 = hash.replace(/-/g, '+').replace(/_/g, '/');
     showOutput(decoded);
     const cleanHash = hash.replace(/[\r\n\s]/g, '');

@@ -69,12 +69,15 @@ Two-pane layout (input left, output right) matching the PromptFerret tools dark 
 - **Unsquish**: decode input blob → original text
 - **Copy**: copy output to clipboard
 - **Link**: copy shareable URL with payload in hash (enabled after squishing)
+- **Open**: load any file into the input pane (read as text; no file type filter)
 - **Clear**: reset everything
 
 No mode toggle — both action buttons are always visible. Paste text and pick which one you want.
 
 ### Pane Headers
-Each pane has a header label and a Copy button (appears when content is available).
+Each pane has a header label with Save and Copy buttons (appear when content is available):
+- **Input pane**: Save downloads input as `squishtext-input.txt`; Copy copies input to clipboard
+- **Output pane**: Save downloads output as `.squishtext` (after squishing) or `.txt` (after unsquishing); Copy copies output to clipboard
 
 ### Stats Bar
 After compression/decompression, show:
