@@ -10,7 +10,7 @@ The file is ~3200+ lines. Rough section layout:
 | Section | Contents |
 |---------|----------|
 | CSS | Full theme, button classes, searchable select, modal overlay, combat list cards, condition/concentration chips, LA/LR badges, turn-notify pulse, responsive breakpoints |
-| HTML | Header, toolbar (nav tabs + Import/Export buttons), status bar, 4 view containers, footer with storage indicator |
+| HTML | Header, toolbar (nav tabs + Save Backup/Load Backup/Import Monster buttons), status bar, 4 view containers, footer with storage indicator |
 | Constants & State | `ABILITIES`, `CONDITIONS`, `SKILLS`, `SIZES`, `STORAGE_KEYS`, `state`, `activeCombatId`, `getActiveCombat()`, `load()`/`save()`, `uuid()`, `esc()`, `modStr()` |
 | Dice Engine | `rollDice(notation, opts)`, `renderDiceText()`, `rollInlineDice()` |
 | Compression | CRC32, `compress()`, `decompress()` — SquishText-compatible, embedded for import/export |
@@ -18,7 +18,7 @@ The file is ~3200+ lines. Rough section layout:
 | View Management | `switchView()`, `handleNew()`, `render()` dispatcher |
 | Monster Templates | List, form, CRUD, passive perception, crits-on field |
 | Encounters | List, form, CRUD, searchable monster picker, delete (clears linked combats) |
-| Parties | List, form, CRUD, player roster chips |
+| Parties | List, form, CRUD, per-party player list |
 | Combat Entry | `startCombat()`, party select cards, `launchCombat()` |
 | Combat List | `renderCombatList()`, `resumeCombat()` — multi-combat selector |
 | Initiative Setup | `renderInitiativeSetup()`, `beginCombat()`, `addAdhocCombatant()` |
@@ -32,8 +32,8 @@ The file is ~3200+ lines. Rough section layout:
 | Attack Rolling | `rollAttack()`, `rollDamageForAttack()`, `renderRollLog()` |
 | Turn Management | `applyTurnStartEffects()`, `nextTurn()`, `prevTurn()`, `toggleReaction()` |
 | Mid-Combat Editing | `editInit()`, `killCombatant()`, `reviveCombatant()`, `removeCombatant()`, `endCombat()` |
-| Import/Export | `exportData()`, `showImportDialog()`, `doImport()` |
-| Storage Indicator | `updateStorageInfo()` |
+| Import/Export | `exportData()` (Save Backup), `showImportDialog()` (Load Backup — direct file picker), `exportMonster()` (per-monster), `showImportMonsterDialog()` / `doImportMonster()` (Import Monster modal, multiselect) |
+| Storage Indicator | `updateStorageInfo()` — auto-scales units (B/KB/MB/GB), shows usage/quota |
 | Init | `load().then(() => { render(); updateStorageInfo(); })` |
 
 *Line numbers are approximate and shift as code is added.*
@@ -46,7 +46,7 @@ Four top-level views, switched via nav tabs with show/hide divs:
 | View | Purpose |
 |------|---------|
 | **Monsters** | CRUD for reusable monster templates |
-| **Parties** | Manage player rosters (reusable across encounters) |
+| **Parties** | Manage player groups (each party has its own player list) |
 | **Encounters** | Build encounters from templates (monsters only, no players) |
 | **Combat** | Initiative tracking, rolling, HP/condition management |
 
@@ -72,19 +72,18 @@ All forms (template, party, encounter) follow Save/Close/Cancel with dirty track
 
 ### State Management
 ```javascript
-let state = { templates: [], groups: [], encounters: [], parties: [], combats: [], players: [] };
+let state = { templates: [], groups: [], encounters: [], parties: [], combats: [] };
 let activeCombatId = null; // transient, not persisted — ID of the combat being viewed
 ```
 - `state.combats` is an array of combat objects (supports multiple simultaneous combats)
 - `getActiveCombat()` returns the combat matching `activeCombatId`, or null
-- `state.players` is a shared roster — names reusable across any party via toggle chips
-- `state.parties` own their own `players[]` arrays (copies, not references)
+- Each party owns its own `players[]` array (self-contained — no shared roster)
 - `state.encounters` contain only monsters (no players) — party is selected at combat start
 - Every mutation triggers `save(key)` immediately (fire-and-forget async IndexedDB write; in-memory `state` is the source of truth)
 
 ### Storage (IndexedDB)
 - **Database**: `pf_encounter`, version 1, single object store `state`
-- **Keys** (same `pf_enc_` namespace): `pf_enc_templates`, `pf_enc_groups`, `pf_enc_encounters`, `pf_enc_parties`, `pf_enc_combats`, `pf_enc_players`
+- **Keys** (same `pf_enc_` namespace): `pf_enc_templates`, `pf_enc_groups`, `pf_enc_encounters`, `pf_enc_parties`, `pf_enc_combats`
 - **`load()`** is async — reads from IndexedDB, auto-migrates from localStorage on first run (copies data, then clears localStorage)
 - **`save(key)`** is fire-and-forget — kicks off IndexedDB write without awaiting, callers don't need to change
 - **Fallback**: if IndexedDB is unavailable (`file://` + Safari edge cases), falls back to localStorage silently via `_useLocalStorage` flag
@@ -97,7 +96,7 @@ let activeCombatId = null; // transient, not persisted — ID of the combat bein
 
 **Encounter** — `{ id, name, location, campaign, notes, monsters: [{ templateId, qty }] }`. No players — party selected at combat time.
 
-**Party** — `{ id, name, players: ["name1", "name2"] }`. Players are strings, not objects.
+**Party** — `{ id, name, players: ["name1", "name2"] }`. Players are strings (names only), managed per-party. No shared roster.
 
 **Combat State** — `{ id, name, encounterId, partyId, round, turnIndex, combatants[], damageLog[], active }`. `round: 0` = initiative setup phase. `round: 1+` = active combat. Multiple combats can exist simultaneously in `state.combats[]`.
 
@@ -216,7 +215,7 @@ Fields added on mutation only: `tempHp`, `overrides`, `reactionUsed`, `notes`, `
 - `updatePPDisplay()` — refreshes PP display when WIS score changes mid-edit
 
 ### HTML Escaping
-`esc(s)` escapes `& < > "` for safe HTML rendering. **Never put user-provided strings into inline onclick handlers** — use array indices or UUIDs instead. The apostrophe bug (e.g., "D'Amore" breaking `onclick="fn('D'Amore')"`) is why all roster chip handlers use numeric indices.
+`esc(s)` escapes `& < > "` for safe HTML rendering. **Never put user-provided strings into inline onclick handlers** — use array indices or UUIDs instead. The apostrophe bug (e.g., "D'Amore" breaking `onclick="fn('D'Amore')"`) is why all chip handlers use numeric indices.
 
 ## Inline Event Handler Safety
 
@@ -244,12 +243,13 @@ User input flows through `this.value` in onchange handlers (reads from DOM eleme
 
 ## Phased Build Status
 
-- **Phase 1** (done): Monster CRUD, party CRUD, encounter CRUD, dice engine, player roster, form dirty tracking, status flash, PP auto-calc
+- **Phase 1** (done): Monster CRUD, party CRUD, encounter CRUD, dice engine, form dirty tracking, status flash, PP auto-calc
 - **Phase 2** (done): Combat core — initiative rolling with roll text display, turn management, HP tracking (single input + Dmg/Heal/THP), attack rolling (normal/adv/dis), crit damage rolling, crit/fumble highlighting (nat 20/nat 1), stacking roll log (persisted, clears on turn start), expandable combatant rows with column headers, ad-hoc combatants (sorted on add), reaction toggle, player AC, multiattack styling, init drop ends turn
 - **Phase 3** (done): Crit range on template (customizable crit threshold, labeled "Crits On"), full feature/trait text display in combat with inline clickable dice rolling (roll log labels include source feature/LA name), feature use tracking with DM-initiated recharge rolls, legendary actions (budget tracking, use/restore buttons, auto-recharge on turn) and resistances (use/restore counter), ability check/save rolling from detail panel, condition/effect tracking (rounds/save-based/indefinite, all combatant types, custom effects, condition chips on rows, auto-decrement), concentration tracking with damage DC warnings, turn-start notification badges on combatant rows
 - **Phase 3.5** (done): IndexedDB migration (auto-migrates from localStorage, localStorage fallback), no-cache meta tags, init 0 display fix
-- **Phase 4** (done): Multi-combat support (combats array + combat list selector UI), SquishText import/export (file-based backup/restore with embedded compression), searchable monster picker in encounter form, storage indicator in footer
-- **Phase 5+** (future): External importers — CritterDB, 5etools, Bestiary Builder (each in own phase for discovery/mapping). See `PLAN.md` for backlog.
+- **Phase 4** (done): Multi-combat support (combats array + combat list selector UI with player names), SquishText import/export (.squishtext format, smart merge by ID, per-monster export/import with multiselect), searchable monster picker in encounter form, storage indicator in footer (auto-scales B/KB/MB/GB, shows quota)
+- **Phase 4.1** (done): Per-party player lists (removed shared roster), toolbar UX (Save Backup/Load Backup/Import Monster), direct file picker for Load Backup (no modal)
+- **Phase 5+** (future): External importers — 5etools, CritterDB, Bestiary Builder (each in own phase for discovery/mapping). See `PLAN.md` for backlog.
 
 ## Development Notes
 
@@ -263,6 +263,8 @@ User input flows through `this.value` in onchange handlers (reads from DOM eleme
 - **Button classes**: Use `.btn-accent`, `.btn-success`, `.btn-warning`, `.btn-danger` for colored buttons — never inline `style="color:var(--accent)"` as it breaks hover contrast. Each class has proper `:hover` with `color: white !important`. `.btn-remove` is the global class for × delete/remove buttons (red border, red text, red bg on hover).
 - **Multi-combat**: All combat functions use `getActiveCombat()` instead of `state.combat`. `activeCombatId` is transient (not persisted). `saveCombat()` saves the entire `state.combats` array. Migration from old single-combat format (`pf_enc_combat`) is automatic in `load()`.
 - **Searchable monster picker**: Encounter form uses `filterMonsterPicker()` + `selectMonster()` with a `.search-select` dropdown. Monster ID stored in `data-template-id` on the input element.
-- **Import/Export**: Uses embedded SquishText-compatible compression (deflate-raw + CRC32). Export = file download. Import = file upload modal. Accepts both SquishText blobs and raw JSON.
+- **Import/Export**: Uses embedded SquishText-compatible compression (deflate-raw + CRC32). `.squishtext` file extension. SquishText format only (no JSON fallback). Smart merge on import — skips duplicates by ID, keeps existing data, adds new items only.
+- **Save Backup / Load Backup**: Full data backup/restore. Load Backup uses direct file picker (no modal). Save Backup downloads `.squishtext` file.
+- **Import Monster / Export Monster**: Per-monster `.squishtext` files. Export button on each monster card. Import Monster button in toolbar (visible on Monsters tab only). Import modal supports multiselect — processes multiple `.squishtext` files at once, dedupes by ID across files.
 - No backwards compatibility concerns yet — tool is pre-release
 - Context: heroic/homebrew D&D — CR100 monsters, level 60 players, non-standard rules are expected

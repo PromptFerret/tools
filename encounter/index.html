@@ -329,28 +329,25 @@
   }
   .search-bar input::placeholder { color: var(--text-dim); }
 
-  /* ── Player Roster (in party form) ── */
-  .roster-grid {
+  /* ── Player List (in party form) ── */
+  .player-list {
     display: flex;
     flex-wrap: wrap;
     gap: 0.35rem;
     margin-top: 0.3rem;
   }
-  .roster-chip {
+  .player-chip {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
     padding: 0.4rem 0.7rem;
-    border: 1px solid var(--border);
+    border: 1px solid var(--accent);
     border-radius: var(--radius);
     font-size: 0.8rem;
-    cursor: pointer;
-    transition: all 0.15s;
-    background: var(--surface2);
-    color: var(--text-muted);
+    background: var(--accent);
+    color: white;
   }
-  .roster-chip.selected { background: var(--accent); color: white; border-color: var(--accent); }
-  .roster-chip .chip-remove {
+  .player-chip .chip-remove {
     font-size: 0.65rem;
     color: var(--error);
     cursor: pointer;
@@ -361,7 +358,7 @@
     background: transparent;
     line-height: 1;
   }
-  .roster-chip .chip-remove:hover { background: var(--error); color: white; }
+  .player-chip .chip-remove:hover { background: var(--error); color: white; }
 
   /* ── Monster Picks (in encounter form) ── */
   .monster-pick {
@@ -740,9 +737,10 @@
   <button class="btn-toggle" id="navEncounters" onclick="switchView('encounters')">Encounters</button>
   <button class="btn-toggle" id="navCombat" onclick="switchView('combat')">Combat</button>
   <div class="spacer"></div>
-  <button class="btn-sm" onclick="showImportDialog()" title="Import backup">Import</button>
-  <button class="btn-sm" onclick="exportData()" title="Export backup">Export</button>
+  <button class="btn-sm" onclick="showImportDialog()" title="Load backup">Load Backup</button>
+  <button class="btn-sm" onclick="exportData()" title="Save backup">Save Backup</button>
   <div class="sep"></div>
+  <button class="btn-sm" id="btnImportMonster" onclick="showImportMonsterDialog()">Import Monster</button>
   <button class="btn-action" id="btnNew" onclick="handleNew()">+ New Monster</button>
 </div>
 
@@ -780,8 +778,7 @@ const STORAGE_KEYS = {
   groups: 'pf_enc_groups',
   encounters: 'pf_enc_encounters',
   parties: 'pf_enc_parties',
-  combats: 'pf_enc_combats',
-  players: 'pf_enc_players'
+  combats: 'pf_enc_combats'
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -793,8 +790,7 @@ let state = {
   groups: [],
   encounters: [],
   parties: [],
-  combats: [],
-  players: []
+  combats: []
 };
 
 let currentView = 'templates';
@@ -932,6 +928,11 @@ async function load() {
       } catch (e) { /* best effort */ }
       console.log('Migrated single combat to combats array');
     }
+    // Clean up old shared player roster key (Phase 4.1 — players now per-party)
+    try {
+      const tx2 = _db.transaction(DB_STORE, 'readwrite');
+      tx2.objectStore(DB_STORE).delete('pf_enc_players');
+    } catch (e) { /* best effort */ }
     // Auto-migrate from localStorage if IndexedDB was empty
     if (!hasIdbData && oldCombat === undefined) {
       let migrated = false;
@@ -955,7 +956,7 @@ async function load() {
         for (const [k, skey] of Object.entries(STORAGE_KEYS)) {
           try { _db.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE).put(state[k], skey); } catch (e) { /* best effort */ }
         }
-        for (const skey of [...Object.values(STORAGE_KEYS), 'pf_enc_combat']) {
+        for (const skey of [...Object.values(STORAGE_KEYS), 'pf_enc_combat', 'pf_enc_players']) {
           try { localStorage.removeItem(skey); } catch (e) { /* best effort */ }
         }
         console.log('Migrated data from localStorage to IndexedDB');
@@ -1157,6 +1158,10 @@ function switchView(view) {
   searchQuery = '';
 
   currentView = view;
+  // When navigating to combat via tab, show the combat list (not last-viewed combat)
+  if (view === 'combat' && !pendingCombatEncounterId) {
+    activeCombatId = null;
+  }
   ['templates', 'parties', 'encounters', 'combat'].forEach(v => {
     document.getElementById('nav' + v.charAt(0).toUpperCase() + v.slice(1)).classList.toggle('active', view === v);
     document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1)).classList.toggle('active', view === v);
@@ -1166,6 +1171,7 @@ function switchView(view) {
   btnNew.style.display = view === 'combat' ? 'none' : '';
   const labels = { templates: '+ New Monster', parties: '+ New Party', encounters: '+ New Encounter' };
   btnNew.textContent = labels[view] || '';
+  document.getElementById('btnImportMonster').style.display = view === 'templates' ? '' : 'none';
 
   render();
 }
@@ -1229,6 +1235,7 @@ function renderTemplateList() {
       html += '<span class="card-title">' + esc(t.name || 'Unnamed') + '</span>';
       html += '<div class="card-actions">';
       html += '<button class="btn-sm" onclick="showTemplateForm(\'' + t.id + '\')">Edit</button>';
+      html += '<button class="btn-sm" onclick="exportMonster(\'' + t.id + '\')">Export</button>';
       html += '<button class="btn-sm btn-danger" onclick="deleteTemplate(\'' + t.id + '\')">Delete</button>';
       html += '</div></div>';
       html += '<div class="card-meta">' + meta.map(m => '<span>' + esc(m) + '</span>').join('') + '</div>';
@@ -1842,14 +1849,12 @@ function renderPartyForm() {
   html += '<button class="btn-sm" onclick="addPlayerToParty()">Add</button>';
   html += '</div>';
 
-  // Roster chips
-  if (state.players.length > 0) {
-    html += '<div class="roster-grid">';
-    state.players.forEach((p, idx) => {
-      const selected = d.players.includes(p);
-      html += '<span class="roster-chip ' + (selected ? 'selected' : '') + '" onclick="togglePlayerInParty(' + idx + ')">';
+  if (d.players.length > 0) {
+    html += '<div class="player-list">';
+    d.players.forEach((p, idx) => {
+      html += '<span class="player-chip">';
       html += esc(p);
-      html += '<span class="chip-remove" onclick="event.stopPropagation();removeFromRoster(' + idx + ')" title="Remove from roster">×</span>';
+      html += '<span class="chip-remove" onclick="removePlayerFromParty(' + idx + ')" title="Remove player">×</span>';
       html += '</span>';
     });
     html += '</div>';
@@ -1873,24 +1878,11 @@ function addPlayerToParty() {
   const name = input.value.trim();
   if (!name) return;
   if (!formData.players.includes(name)) formData.players.push(name);
-  if (!state.players.includes(name)) { state.players.push(name); save('players'); }
   renderPartyForm();
 }
 
-function togglePlayerInParty(rosterIdx) {
-  const name = state.players[rosterIdx];
-  const idx = formData.players.indexOf(name);
-  if (idx >= 0) formData.players.splice(idx, 1);
-  else formData.players.push(name);
-  renderPartyForm();
-}
-
-function removeFromRoster(rosterIdx) {
-  const name = state.players[rosterIdx];
-  if (!confirm('Remove "' + name + '" from the player roster?')) return;
-  state.players = state.players.filter(p => p !== name);
-  formData.players = formData.players.filter(p => p !== name);
-  save('players');
+function removePlayerFromParty(idx) {
+  formData.players.splice(idx, 1);
   renderPartyForm();
 }
 
@@ -1994,6 +1986,10 @@ function renderCombatList(el) {
     }
     html += '<span style="font-size:0.75rem;color:var(--text-dim)">' + alive + '/' + combat.combatants.length + ' alive</span>';
     html += '</div>';
+    const players = combat.combatants.filter(c => c.type === 'player');
+    if (players.length > 0) {
+      html += '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.25rem">' + players.map(p => esc(p.name)).join(', ') + '</div>';
+    }
     html += '</div>';
   });
   html += '</div>';
@@ -2019,6 +2015,7 @@ function startCombat(encounterId) {
     return;
   }
   pendingCombatEncounterId = encounterId;
+  activeCombatId = null;
   switchView('combat');
 }
 
@@ -3178,7 +3175,6 @@ async function exportData() {
       templates: state.templates,
       encounters: state.encounters,
       parties: state.parties,
-      players: state.players,
       combats: state.combats
     };
     const json = JSON.stringify(payload);
@@ -3188,7 +3184,7 @@ async function exportData() {
     const file = new Blob([blob], { type: 'text/plain' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(file);
-    a.download = 'encounter-backup-' + new Date().toISOString().slice(0, 10) + '.txt';
+    a.download = 'encounter-backup-' + new Date().toISOString().slice(0, 10) + '.squishtext';
     a.click();
     URL.revokeObjectURL(a.href);
     setStatus('Backup exported!', 'success');
@@ -3199,56 +3195,112 @@ async function exportData() {
 }
 
 function showImportDialog() {
-  // Remove existing modal if any
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.squishtext';
+  input.onchange = async function() {
+    if (!input.files.length) return;
+    try {
+      const text = await input.files[0].text();
+      const decompressed = await decompress(text);
+      const data = JSON.parse(decompressed);
+      if (!data.templates && !data.encounters) throw new Error('Invalid backup format');
+      const existingIds = new Set();
+      function mergeArray(existing, incoming) {
+        existing.forEach(item => existingIds.add(item.id));
+        let added = 0;
+        (incoming || []).forEach(item => {
+          if (!existingIds.has(item.id)) { existing.push(item); added++; }
+        });
+        existingIds.clear();
+        return added;
+      }
+      let added = 0;
+      added += mergeArray(state.templates, data.templates);
+      added += mergeArray(state.encounters, data.encounters);
+      added += mergeArray(state.parties, data.parties);
+      added += mergeArray(state.combats, data.combats);
+      activeCombatId = null;
+      save();
+      setStatus('Backup loaded! ' + added + ' new item' + (added !== 1 ? 's' : '') + ' added, duplicates skipped.', 'success');
+      render();
+      updateStorageInfo();
+    } catch (e) {
+      console.error('Import failed:', e);
+      setStatus('Import failed: ' + e.message, 'error');
+    }
+  };
+  input.click();
+}
+
+// ── Monster Import / Export ──
+
+async function exportMonster(id) {
+  const t = state.templates.find(t => t.id === id);
+  if (!t) { setStatus('Monster not found.', 'error'); return; }
+  try {
+    const payload = { version: 1, exported: new Date().toISOString(), templates: [t] };
+    const json = JSON.stringify(payload);
+    const compressed = await compress(json);
+    const header = '[SquishText] To decode, base64-decode the string below then inflate (deflate-raw). Or paste at https://promptferret.github.io/tools/squishtext/\n';
+    const file = new Blob([header + compressed], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file);
+    a.download = (t.name || 'monster').replace(/[^a-zA-Z0-9_-]/g, '_') + '.squishtext';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus('Exported: ' + t.name, 'success');
+  } catch (e) {
+    setStatus('Export failed: ' + e.message, 'error');
+  }
+}
+
+function showImportMonsterDialog() {
   const existing = document.getElementById('importModal');
   if (existing) existing.remove();
-
   const modal = document.createElement('div');
   modal.id = 'importModal';
   modal.className = 'modal-overlay';
   modal.innerHTML = '<div class="modal-content">' +
-    '<div class="form-section-title" style="margin-bottom:0.75rem">Import Backup</div>' +
-    '<p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.75rem">Select a backup file (.txt or .json) exported from this tool.</p>' +
-    '<input type="file" id="importFileInput" accept=".txt,.json" style="margin-bottom:1rem;font-size:0.8rem;color:var(--text)">' +
-    '<p style="font-size:0.7rem;color:var(--warning);margin-bottom:1rem">Warning: This will replace all current data.</p>' +
+    '<div class="form-section-title" style="margin-bottom:0.75rem">Import Monsters</div>' +
+    '<p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.75rem">Select one or more .squishtext files containing monster templates.</p>' +
+    '<input type="file" id="importFileInput" accept=".squishtext" multiple style="margin-bottom:1rem;font-size:0.8rem;color:var(--text)">' +
+    '<p style="font-size:0.7rem;color:var(--text-muted);margin-bottom:1rem">New monsters will be added. Existing monsters are kept (duplicates skipped by ID).</p>' +
     '<div style="display:flex;gap:0.5rem;justify-content:flex-end">' +
     '<button class="btn-sm" onclick="document.getElementById(\'importModal\').remove()">Cancel</button>' +
-    '<button class="btn-sm btn-action" onclick="doImport()">Import</button>' +
+    '<button class="btn-sm btn-action" onclick="doImportMonster()">Import</button>' +
     '</div></div>';
-  modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
   document.body.appendChild(modal);
 }
 
-async function doImport() {
+async function doImportMonster() {
   const fileInput = document.getElementById('importFileInput');
   if (!fileInput || !fileInput.files.length) {
     setStatus('Select a file first.', 'warning');
     return;
   }
   try {
-    const text = await fileInput.files[0].text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
+    const existingIds = new Set(state.templates.map(t => t.id));
+    let added = 0, dupes = 0, totalFound = 0;
+    for (const file of fileInput.files) {
+      const text = await file.text();
       const decompressed = await decompress(text);
-      data = JSON.parse(decompressed);
+      const data = JSON.parse(decompressed);
+      if (!data.templates || !data.templates.length) continue;
+      totalFound += data.templates.length;
+      data.templates.forEach(t => {
+        if (!existingIds.has(t.id)) { state.templates.push(t); existingIds.add(t.id); added++; }
+        else { dupes++; }
+      });
     }
-    if (!data.templates && !data.encounters) throw new Error('Invalid backup format');
-    state.templates = data.templates || [];
-    state.encounters = data.encounters || [];
-    state.parties = data.parties || [];
-    state.players = data.players || [];
-    state.combats = data.combats || [];
-    activeCombatId = null;
-    save();
+    if (totalFound === 0) throw new Error('No monster templates found in selected files');
+    save('templates');
     const modal = document.getElementById('importModal');
     if (modal) modal.remove();
-    setStatus('Data imported successfully! ' + state.templates.length + ' templates, ' + state.encounters.length + ' encounters.', 'success');
+    setStatus('Imported ' + added + ' monster' + (added !== 1 ? 's' : '') + (dupes > 0 ? ' (' + dupes + ' duplicate' + (dupes !== 1 ? 's' : '') + ' skipped)' : '') + '.', 'success');
     render();
-    updateStorageInfo();
   } catch (e) {
-    console.error('Import failed:', e);
+    console.error('Monster import failed:', e);
     setStatus('Import failed: ' + e.message, 'error');
   }
 }
@@ -3262,8 +3314,13 @@ function updateStorageInfo() {
   navigator.storage.estimate().then(est => {
     const el = document.getElementById('storageInfo');
     if (!el) return;
-    const usedMB = (est.usage / (1024 * 1024)).toFixed(1);
-    el.textContent = 'Storage: ' + usedMB + ' MB used';
+    function fmt(b) {
+      if (b < 1024) return b + ' B';
+      if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+      if (b < 1024 * 1024 * 1024) return (b / (1024 * 1024)).toFixed(1) + ' MB';
+      return (b / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+    }
+    el.textContent = 'Storage: ' + fmt(est.usage || 0) + ' / ' + fmt(est.quota || 0);
   }).catch(() => {});
 }
 

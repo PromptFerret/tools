@@ -14,7 +14,7 @@ Built for heroic/homebrew D&D — CR100 monsters, level 60 players, non-standard
 - View switching with dirty check warnings
 - Monster template CRUD (list with search, form with all fields including abilities, attacks with multiple damage types, features, legendary actions/resistances)
 - Encounter CRUD (name, location, campaign, notes, monster picker with qty)
-- Party CRUD with shared player roster (toggle chips, array index handlers for safety)
+- Party CRUD with per-party player list (type name + Add, remove with × button)
 - Dice engine: `rollDice(notation, opts)` — NdN+M, advantage/disadvantage
 - Passive Perception auto-calc
 - localStorage persistence with `pf_enc_` namespace
@@ -106,17 +106,28 @@ New field on monster template:
 - `state.combat` (single object) → `state.combats` (array) + `activeCombatId` (transient)
 - `pf_enc_combats` IndexedDB key (auto-migrates from old `pf_enc_combat` single-object key)
 - `getActiveCombat()` helper replaces all direct `state.combat` references
-- Combat list view: cards for each combat showing name, round, turn, alive count
+- Combat list view: cards for each combat showing name, round, turn, alive count, player names
 - Click card to resume, "Back to List" button in combat bar when multiple combats exist
 - Each combat gets `id` (UUID) and `name` (auto-generated from encounter + party names)
 - `endCombat()` removes from array instead of setting null
+- `startCombat()` clears `activeCombatId` before switching to combat view (ensures party select shows)
+- `switchView('combat')` clears `activeCombatId` when no pending encounter (ensures combat list shows)
 
 ### SquishText Import/Export
-- File-based backup/restore (no clipboard) — Export button downloads .txt, Import button opens file upload modal
-- Export format: SquishText-encoded (deflate-raw → base64 → CRC32 → header)
-- Import accepts both SquishText blobs and raw JSON (auto-detect)
+- Toolbar buttons: "Save Backup" / "Load Backup"
+- Save Backup downloads `.squishtext` file (SquishText-encoded: deflate-raw → base64 → CRC32 → header)
+- Load Backup uses direct file picker (no modal) — creates hidden `<input type="file">`, processes on change
+- SquishText format only (no JSON fallback)
+- Smart merge on import: skips duplicates by ID, keeps existing data, adds new items only
 - Compression functions (`compress`, `decompress`, `crc32`) embedded directly
-- Export payload: `{ version, exported, templates, encounters, parties, players, combats }`
+- Export payload: `{ version, exported, templates, encounters, parties, combats }`
+
+### Per-Monster Import/Export
+- Export button on each monster card — downloads single template as `.squishtext`
+- "Import Monster" button in toolbar (visible on Monsters tab only)
+- Import Monster modal with multiselect file input — processes multiple `.squishtext` files at once
+- Smart merge: dedupes by ID across all selected files, skips existing templates
+- Works with both full backup files and single-monster exports (reads `templates` array from payload)
 
 ### Searchable Monster Picker
 - Replaced `<select>` in encounter form with text input + filtered dropdown (`.search-select`)
@@ -124,21 +135,35 @@ New field on monster template:
 - Dropdown closes on click outside, shows CR tag per monster
 
 ### Storage Indicator
-- Footer shows "Storage: X.X MB used" via `navigator.storage.estimate()`
+- Footer shows "Storage: X.X KB / 2.0 GB" via `navigator.storage.estimate()`
+- Auto-scales units: B → KB → MB → GB for both usage and quota
 - Updated after load and debounced after saves (2s timeout)
+
+## Phase 4.1 — Per-Party Player Lists (done)
+
+- Removed shared player roster (`state.players` array, `pf_enc_players` storage key)
+- Each party now owns its own `players[]` array — self-contained, no shared state
+- Party form simplified: text input + Add button, player chips with × remove button
+- Removed `togglePlayerInParty()`, `removeFromRoster()` functions
+- `addPlayerToParty()` simplified — just pushes to `formData.players`, no shared roster
+- New `removePlayerFromParty(idx)` — splices from `formData.players`
+- CSS: `.roster-chip`/`.roster-grid` renamed to `.player-chip`/`.player-list`, removed toggle/selected styling
+- Import migration: old backups with `players` array merge roster names into all parties
+- Storage cleanup: `pf_enc_players` key deleted from IndexedDB on load
 
 ## Future Phases
 
-### Phase 5 — CritterDB Importer
-- Discovery: investigate CritterDB JSON export format
-- Data mapping: map CritterDB fields to canonical template schema
-- Pure function: `importCritterDB(json) → template[]`
-- UI: file upload or paste, preview mapped templates before import
-
-### Phase 6 — 5etools Importer
+### Phase 5 — 5etools Importer
 - Discovery: investigate 5etools bestiary JSON format
 - Data mapping: map 5etools fields to canonical template schema
 - Pure function: `import5etools(json) → template[]`
+- UI: integrate into Import Monster modal (file type detection)
+
+### Phase 6 — CritterDB Importer
+- Discovery: investigate CritterDB JSON export format
+- Data mapping: map CritterDB fields to canonical template schema
+- Pure function: `importCritterDB(json) → template[]`
+- UI: integrate into Import Monster modal
 
 ### Phase 7 — Bestiary Builder Importer
 - Discovery: investigate Bestiary Builder JSON export format
