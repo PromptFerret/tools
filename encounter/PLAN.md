@@ -89,6 +89,17 @@ New field on monster template:
 - Template override highlighting
 - Damage log (collapsible panel)
 
+## Phase 3.5 — IndexedDB Migration + No-Cache (done)
+
+- Migrated from localStorage (~5-10MB) to IndexedDB (~50MB+)
+- Auto-migration: on first load, reads localStorage data, writes to IndexedDB, clears localStorage
+- Fallback: if IndexedDB unavailable (Safari `file://`), silently falls back to localStorage via `_useLocalStorage` flag
+- `save(key)` is fire-and-forget async — callers unchanged, in-memory `state` is source of truth
+- `load()` is async — init block changed to `load().then(render)`
+- Database: `pf_encounter`, version 1, single object store `state`
+- No-cache meta tags added (`Cache-Control`, `Pragma`, `Expires`) so browsers always fetch latest version
+- Init value 0 fix: initiative of 0 now displays correctly (not as empty). Null/undefined init is distinct from 0 — empty means "not set", 0 means "rolled zero". All sorting uses `?? -Infinity` so null-init combatants sort to bottom. `beginCombat()` validation checks for null/undefined, not falsy.
+
 ## Phase 4 — Organization, Multi-Combat & Import/Export
 
 ### Multi-Combat Support

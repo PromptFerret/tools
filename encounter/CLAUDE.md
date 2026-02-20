@@ -1,7 +1,7 @@
 # Encounter Manager
 
 ## What This Is
-A single self-contained HTML file (`index.html`) for D&D encounter management and initiative tracking. DMs build monster templates, organize parties, construct encounters, and run combat — all in the browser with localStorage persistence. No server, no accounts, no dependencies.
+A single self-contained HTML file (`index.html`) for D&D encounter management and initiative tracking. DMs build monster templates, organize parties, construct encounters, and run combat — all in the browser with IndexedDB persistence (auto-migrates from localStorage, falls back to localStorage if IndexedDB unavailable). No server, no accounts, no dependencies.
 
 ## Code Map
 
@@ -73,16 +73,16 @@ let state = { templates: [], groups: [], encounters: [], parties: [], combat: nu
 - `state.players` is a shared roster — names reusable across any party via toggle chips
 - `state.parties` own their own `players[]` arrays (copies, not references)
 - `state.encounters` contain only monsters (no players) — party is selected at combat start
-- Every mutation triggers `save(key)` immediately (synchronous localStorage write)
+- Every mutation triggers `save(key)` immediately (fire-and-forget async IndexedDB write; in-memory `state` is the source of truth)
 
-### localStorage Keys
-All namespaced with `pf_enc_`:
-- `pf_enc_templates` — monster template array
-- `pf_enc_groups` — monster groups array (Phase 4)
-- `pf_enc_encounters` — encounter array
-- `pf_enc_parties` — party array
-- `pf_enc_combat` — active combat state (null if none)
-- `pf_enc_players` — shared player roster
+### Storage (IndexedDB)
+- **Database**: `pf_encounter`, version 1, single object store `state`
+- **Keys** (same `pf_enc_` namespace): `pf_enc_templates`, `pf_enc_groups`, `pf_enc_encounters`, `pf_enc_parties`, `pf_enc_combat`, `pf_enc_players`
+- **`load()`** is async — reads from IndexedDB, auto-migrates from localStorage on first run (copies data, then clears localStorage)
+- **`save(key)`** is fire-and-forget — kicks off IndexedDB write without awaiting, callers don't need to change
+- **Fallback**: if IndexedDB is unavailable (`file://` + Safari edge cases), falls back to localStorage silently via `_useLocalStorage` flag
+- **Init**: `load().then(render)` — async load completes before first render
+- **Capacity**: ~50MB+ vs localStorage's ~5-10MB
 
 ### Data Schemas
 
@@ -152,6 +152,13 @@ Fields added on mutation only: `tempHp`, `overrides`, `reactionUsed`, `notes`, `
 - `applyHeal(idx)` — cap at maxHp, auto-revive if healed above 0.
 - `applyTempHp(idx)` — THP doesn't stack, takes higher value (D&D rules).
 
+### Initiative Values
+- Init can be a number (including 0) or `null` (not yet set). These are distinct states — `0` displays as "0", `null` displays as empty input.
+- All init comparisons use `c.init !== null && c.init !== undefined` (never `!c.init`, which treats 0 as falsy).
+- All sorting uses `(c.init ?? -Infinity)` so null-init combatants sort to the bottom.
+- `setCombatantInit()` and `editInit()` convert empty string input to `null`, numeric input to number.
+- `beginCombat()` validates that all players have non-null init before starting.
+
 ### Init Editing
 - `editInit(idx, value)` — if current combatant drops init, their turn ends and combat advances to next (via `applyTurnStartEffects()`). Non-current combatant edits preserve the current turn.
 
@@ -220,8 +227,9 @@ User input flows through `this.value` in onchange handlers (reads from DOM eleme
 
 ## Testing
 - No build step, no test suite. Open `index.html` in a browser.
-- Inspect localStorage in DevTools console: `JSON.stringify(localStorage)`
-- Works from `file://` — no server needed.
+- Inspect IndexedDB in DevTools: Application > IndexedDB > `pf_encounter` > `state`
+- Check storage capacity: `navigator.storage.estimate()` in console
+- Works from `file://` — no server needed (falls back to localStorage if IndexedDB unavailable).
 - Works on GitHub Pages at `https://promptferret.github.io/tools/encounter/`
 
 ## Phased Build Status
@@ -229,6 +237,7 @@ User input flows through `this.value` in onchange handlers (reads from DOM eleme
 - **Phase 1** (done): Monster CRUD, party CRUD, encounter CRUD, dice engine, player roster, form dirty tracking, status flash, PP auto-calc
 - **Phase 2** (done): Combat core — initiative rolling with roll text display, turn management, HP tracking (single input + Dmg/Heal/THP), attack rolling (normal/adv/dis), crit damage rolling, crit/fumble highlighting (nat 20/nat 1), stacking roll log (persisted, clears on turn start), expandable combatant rows with column headers, ad-hoc combatants (sorted on add), reaction toggle, player AC, multiattack styling, init drop ends turn
 - **Phase 3** (done): Crit range on template (customizable crit threshold, labeled "Crits On"), full feature/trait text display in combat with inline clickable dice rolling (roll log labels include source feature/LA name), feature use tracking with DM-initiated recharge rolls, legendary actions (budget tracking, use/restore buttons, auto-recharge on turn) and resistances (use/restore counter), ability check/save rolling from detail panel, condition/effect tracking (rounds/save-based/indefinite, all combatant types, custom effects, condition chips on rows, auto-decrement), concentration tracking with damage DC warnings, turn-start notification badges on combatant rows
+- **Phase 3.5** (done): IndexedDB migration (auto-migrates from localStorage, localStorage fallback), no-cache meta tags, init 0 display fix
 - **Phase 4** (next): Monster groups, multi-combat support (combat array + selector UI for split sessions), import/export (CritterDB, 5etools, SquishText-encoded), storage indicator, update root index.html. See `PLAN.md` for full details.
 
 ## Development Notes
