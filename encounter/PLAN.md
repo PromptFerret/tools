@@ -44,16 +44,22 @@ Built for heroic/homebrew D&D — CR100 monsters, level 60 players, non-standard
 
 ## Phase 3 — Combat Features (done)
 
-- Crit range on template schema (`critRange`, default 20, customizable for homebrew 18-20 etc.)
+- Crit range on template schema (`critRange`, default 20, labeled "Crits On" in form, customizable for homebrew 18-20 etc.)
 - Full feature/trait text display in combat detail panel with inline clickable dice rolling (`renderDiceText()`)
-- Feature use tracking: `featureUses` sparse map on combatant, Use/Restore buttons, depleted state display
-- DM-initiated recharge: notification in roll log at turn start, Roll Recharge button in detail panel
-- Legendary actions: LA budget display on row and detail panel, per-action Use buttons (cost-aware), auto-recharge on turn start
-- Legendary resistances: LR counter on row and detail panel, Use LR button
+- Inline dice roll log entries include source feature/LA name (e.g., "Fire Breath: 2d6+3")
+- Feature use tracking: `featureUses` sparse map on combatant, Use/Restore buttons (accent/success colored), depleted state display
+- DM-initiated recharge: notification in roll log at turn start, Roll Recharge button (warning colored) in detail panel
+- Legendary actions: LA budget display on row (badge) and detail panel, per-action Use buttons (cost-aware), Restore LA button for DM take-backs, auto-recharge on turn start
+- Legendary resistances: LR counter on row (badge) and detail panel, Use LR + Restore LR buttons
+- LA/LR use and restore actions logged to combatant rollLog
 - Ability check/save rolling: Chk/Save buttons per ability score in monster detail panel stats section
 - Condition/effect tracking: 14 standard D&D conditions + custom text, three duration types (rounds/save-based/indefinite), condition chips on ALL combatant rows, add/remove UI in all detail panels
 - Concentration tracking: text input per combatant, chip on row, damage triggers CON save DC warning (`max(10, damage/2)`)
 - Consolidated turn-start hook: `applyTurnStartEffects(idx)` handles reaction reset, rollLog clear, recharge prompts, LA recharge, condition decrement/save reminders
+- Turn-start notification badges on combatant rows (pulse animation) when panel is collapsed
+- Button class system: `.btn-accent`, `.btn-success`, `.btn-warning`, `.btn-danger`, `.btn-remove` — never use inline color styles on buttons (breaks hover contrast)
+- Features and legendary actions styled as cards (background + border-radius) matching attack cards
+- Roster chips sized for comfortable × button interaction
 
 ### Phase 3 Data Changes
 New fields on combatant instances (sparse, added on mutation only):
