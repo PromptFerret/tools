@@ -177,7 +177,7 @@ Users copy JSON from the 5etools website via clipboard (not file download). The 
 
 Verified against official JSON schema (v1.21.60 from `TheGiddyLimit/5etools-utils`) and 6 real samples: The World Ender (CR 30 aberration, homebrew), Goblin Warrior (CR 1/4, MCDM), Goblin Archer (CR 1/4, LotR homebrew), Werewolf (CR 3, XMM 2024), Vampire (CR 13, XMM 2024), Pit Fiend (CR 20, XMM 2024).
 
-Full schema reference: `tools/5ETOOLS_CREATURE_SCHEMA.md`
+Full schema reference: `tools/resources/5ETOOLS_CREATURE_SCHEMA.md`
 
 Fields we care about (fields we ignore are documented in the schema reference):
 
