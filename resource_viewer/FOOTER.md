@@ -1,1 +1,0 @@
-[PromptFerret](https://promptferret.github.io) · [MIT License](https://github.com/PromptFerret/tools/blob/main/LICENSE) · Vibe coded with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) · [All Tools](https://promptferret.github.io/tools/) · Requires HTTP server (not file://)
