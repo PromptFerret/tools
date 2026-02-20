@@ -5,27 +5,32 @@ A single self-contained HTML file (`index.html`) for D&D encounter management an
 
 ## Code Map
 
-The file is ~2300 lines. Rough section layout:
+The file is ~2800 lines. Rough section layout:
 
 | Section | Lines (approx) | Contents |
 |---------|----------------|----------|
-| CSS | 20–600 | Full theme, all component styles, responsive breakpoints |
-| HTML | 600–700 | Header, toolbar nav tabs, status bar, 4 view containers, footer |
-| Constants & State | 700–755 | `ABILITIES`, `state`, `load()`/`save()`, `uuid()`, `esc()`, `modStr()` |
-| Dice Engine | 755–785 | `rollDice(notation, opts)` |
-| Combat Helpers | 785–805 | `saveCombat()`, `getTemplate()`, `resolveField()` |
-| View Management | 805–830 | `switchView()`, `handleNew()`, `render()` dispatcher |
-| Monster Templates | 830–1200 | List, form, CRUD, passive perception |
-| Encounters | 1200–1410 | List, form, CRUD, delete (clears combat if linked) |
-| Parties | 1410–1560 | List, form, CRUD, player roster chips |
-| Combat Entry | 1560–1700 | `startCombat()`, party select cards, `launchCombat()` |
-| Initiative Setup | 1700–1765 | `renderInitiativeSetup()`, `beginCombat()`, `addAdhocCombatant()` |
-| Active Combat | 1765–1960 | `renderActiveCombat()`, `renderCombatantDetail()`, `toggleCombatantDetail()` |
-| HP Tracking | 2000–2120 | `applyDamage()`, `applyHeal()`, `applyTempHp()` |
-| Attack Rolling | 2120–2210 | `rollAttack()`, `rollDamageForAttack()`, `renderRollLog()` |
-| Turn Management | 2210–2270 | `nextTurn()`, `prevTurn()`, `toggleReaction()` |
-| Mid-Combat Editing | 2270–2340 | `editInit()`, `killCombatant()`, `reviveCombatant()`, `removeCombatant()`, `endCombat()` |
-| Init | 2340–2345 | `load(); render();` |
+| CSS | 20–620 | Full theme, all component styles, condition/concentration chips, responsive breakpoints |
+| HTML | 620–710 | Header, toolbar nav tabs, status bar, 4 view containers, footer |
+| Constants & State | 710–770 | `ABILITIES`, `CONDITIONS`, `state`, `load()`/`save()`, `uuid()`, `esc()`, `modStr()` |
+| Dice Engine | 770–815 | `rollDice(notation, opts)`, `renderDiceText()`, `rollInlineDice()` |
+| Combat Helpers | 840–860 | `saveCombat()`, `getTemplate()`, `resolveField()` |
+| View Management | 860–890 | `switchView()`, `handleNew()`, `render()` dispatcher |
+| Monster Templates | 890–1260 | List, form, CRUD, passive perception, crit range field |
+| Encounters | 1260–1470 | List, form, CRUD, delete (clears combat if linked) |
+| Parties | 1470–1620 | List, form, CRUD, player roster chips |
+| Combat Entry | 1620–1760 | `startCombat()`, party select cards, `launchCombat()` |
+| Initiative Setup | 1760–1825 | `renderInitiativeSetup()`, `beginCombat()`, `addAdhocCombatant()` |
+| Active Combat | 1825–2210 | `renderActiveCombat()`, `renderCombatantDetail()` (with conditions, concentration, legendary sections) |
+| Condition Tracking | 2230–2300 | `updateConditionFields()`, `addCondition()`, `removeCondition()` |
+| Concentration | 2300–2325 | `setConcentration()`, `dropConcentration()` |
+| HP Tracking | 2325–2400 | `applyDamage()` (with concentration DC warning), `applyHeal()`, `applyTempHp()` |
+| Feature Use Tracking | 2400–2470 | `useFeature()`, `restoreFeature()`, `rollRecharge()` |
+| Legendary Actions | 2470–2510 | `useLegendaryAction()`, `useLegendaryResistance()` |
+| Ability Check/Save | 2510–2550 | `rollAbilityCheck()`, `rollSavingThrow()` |
+| Attack Rolling | 2550–2640 | `rollAttack()`, `rollDamageForAttack()`, `renderRollLog()` |
+| Turn Management | 2640–2720 | `applyTurnStartEffects()`, `nextTurn()`, `prevTurn()`, `toggleReaction()` |
+| Mid-Combat Editing | 2720–2790 | `editInit()`, `killCombatant()`, `reviveCombatant()`, `removeCombatant()`, `endCombat()` |
+| Init | 2790–2795 | `load(); render();` |
 
 *Line numbers are approximate and shift as code is added.*
 
@@ -81,7 +86,7 @@ All namespaced with `pf_enc_`:
 
 ### Data Schemas
 
-**Monster Template** — canonical definition with all stats, attacks, features, legendary actions. Key fields: `abilities` (object with str/dex/con/int/wis/cha), `attacks[]` (each with `damages[]` array of `{dice, type, note}`), `features[]` (with optional `recharge` and `uses/usesMax`), `passivePerception` (null = auto-calc from WIS mod or Perception skill).
+**Monster Template** — canonical definition with all stats, attacks, features, legendary actions. Key fields: `abilities` (object with str/dex/con/int/wis/cha), `attacks[]` (each with `damages[]` array of `{dice, type, note}`), `features[]` (with optional `recharge` and `uses/usesMax`), `passivePerception` (null = auto-calc from WIS mod or Perception skill), `critRange` (default 20, customizable for homebrew).
 
 **Encounter** — `{ id, name, location, campaign, notes, monsters: [{ templateId, qty }] }`. No players — party selected at combat time.
 
@@ -95,7 +100,12 @@ Monster: `{ id, templateId, name, type:'monster', init, initRollText, currentHp,
 Player: `{ id, name, type:'player', init, ac }` — init entered manually, AC editable in detail panel.
 Ad-hoc: `{ id, name, type:'adhoc', init, notes }` — lair actions, environment effects.
 
-Fields added on mutation only: `tempHp`, `overrides`, `reactionUsed`, `notes`, `dead`, `rollLog[]`, `_expanded` (transient UI flag).
+Fields added on mutation only: `tempHp`, `overrides`, `reactionUsed`, `notes`, `dead`, `rollLog[]`, `_expanded` (transient UI flag), `featureUses` (sparse map: featureIndex → remaining), `legendaryActionsRemaining`, `legendaryResistancesRemaining`, `conditions[]`, `concentration` (string or null).
+
+**Condition** — `{ name, durationType, duration?, saveDC?, saveAbility?, source? }`. Three types:
+- `durationType: 'rounds'` — has `duration` (integer), auto-decrements on turn start, auto-expires at 0
+- `durationType: 'save'` — has `saveDC` + `saveAbility`, system reminds DM at turn start, DM removes manually
+- `durationType: 'indefinite'` — no auto-expiry, DM removes manually
 
 ### Combat Flow
 1. DM clicks "Combat" on an encounter
@@ -105,7 +115,7 @@ Fields added on mutation only: `tempHp`, `overrides`, `reactionUsed`, `notes`, `
 5. DM picks a party → `launchCombat(partyId)` initializes `state.combat`, clears `pendingCombatEncounterId`
 6. Initiative setup: monsters pre-rolled (with roll breakdown shown), players blank
 7. DM enters player inits, clicks "Begin Combat" → sorts descending, round 1 starts
-8. Active combat: expandable combatant rows with HP, attacks, roll log
+8. Active combat: expandable combatant rows with HP, attacks, roll log, conditions, concentration
 
 ### Combat Sub-States
 
@@ -121,33 +131,66 @@ Fields added on mutation only: `tempHp`, `overrides`, `reactionUsed`, `notes`, `
 ### Dice Engine
 `rollDice(notation, opts)` — parses `NdN+M` notation, returns `{ rolls, modifier, total, text }`. Supports advantage/disadvantage for 1d20 rolls. Never interprets results (no "hit"/"miss").
 
+### Inline Dice
+- `renderDiceText(text, combatantIdx)` — scans text for dice notation patterns (`NdN+M`), returns HTML with clickable `.dice-link` spans
+- `rollInlineDice(combatantIdx, notation)` — rolls dice from inline text, appends to rollLog, live-updates via `renderRollLog()`
+
 ### Attack Rolling
-- `rollAttack(cIdx, aIdx, mode)` — mode: undefined (normal), `'advantage'`, `'disadvantage'`. Appends to combatant's `rollLog[]`.
+- `rollAttack(cIdx, aIdx, mode)` — mode: undefined (normal), `'advantage'`, `'disadvantage'`. Crit detection uses `template.critRange` (default 20). Appends to combatant's `rollLog[]`.
 - `rollDamageForAttack(cIdx, aIdx, crit)` — crit doubles dice count (NdM → 2NdM), not modifiers. Appends to `rollLog[]`.
 - `renderRollLog(cIdx)` — live-updates the roll log DOM without full re-render.
 
 ### Roll Log
 - Stored on each combatant as `rollLog[]` array, persisted to localStorage.
-- Entries stack chronologically — attacks, damage, crits all accumulate.
-- Cleared at the start of that combatant's next turn (in `nextTurn()`).
+- Entries stack chronologically — attacks, damage, crits, inline dice, recharge rolls, condition notifications all accumulate.
+- Cleared at the start of that combatant's next turn (in `applyTurnStartEffects()`).
 - Survives page refreshes, panel close/open, re-renders.
 
 ### HP Tracking
 - Single input + 3 buttons: Dmg (red), Heal (green), THP (yellow).
-- `applyDamage(idx)` — THP absorbed first, overflow to HP, auto-mark dead at 0.
+- `applyDamage(idx)` — THP absorbed first, overflow to HP, auto-mark dead at 0. Warns about concentration save DC if concentrating.
 - `applyHeal(idx)` — cap at maxHp, auto-revive if healed above 0.
 - `applyTempHp(idx)` — THP doesn't stack, takes higher value (D&D rules).
 
 ### Init Editing
-- `editInit(idx, value)` — if current combatant drops init, their turn ends and combat advances to next. Non-current combatant edits preserve the current turn.
+- `editInit(idx, value)` — if current combatant drops init, their turn ends and combat advances to next (via `applyTurnStartEffects()`). Non-current combatant edits preserve the current turn.
 
 ### Turn-Start Logic
-`nextTurn()` is the main turn-start hook. Currently it:
-- Advances to next living combatant (wraps → increments round)
-- Resets `reactionUsed` on the new combatant
-- Clears `rollLog` on the new combatant
+`applyTurnStartEffects(idx)` is the consolidated turn-start hook, called from both `nextTurn()` and `editInit()` (turn-advance branch). It:
+- Resets `reactionUsed` on the combatant
+- Clears `rollLog`
+- Adds recharge prompts for depleted features with `recharge` (DM-initiated — notification only, DM clicks Roll Recharge in detail panel)
+- Recharges legendary actions to full budget
+- Decrements condition round durations (auto-expires at 0 with notification)
+- Adds save reminders for save-based conditions
 
-**Phase 3 will add to this hook**: recharge prompts, condition duration decrement, legendary action recharge. Note that `editInit()` also has a turn-advance branch (when current combatant drops init) that mirrors this logic — both locations need Phase 3 additions.
+### Feature Use Tracking
+- `useFeature(cIdx, fIdx)` / `restoreFeature(cIdx, fIdx)` — increment/decrement feature uses, stored in `c.featureUses` sparse map
+- `rollRecharge(cIdx, fIdx)` — DM-initiated: rolls 1d6, if >= threshold restores uses. Result shown in roll log.
+
+### Legendary Actions & Resistances
+- `useLegendaryAction(cIdx, laIdx)` — deducts cost from `c.legendaryActionsRemaining`, disables button if insufficient budget
+- `useLegendaryResistance(cIdx)` — decrements `c.legendaryResistancesRemaining`
+- LA/LR badges shown on combatant rows (e.g., "LA:2/3 LR:1/3")
+- LA budget auto-recharges at start of monster's turn
+
+### Ability Check/Save Rolling
+- `rollAbilityCheck(cIdx, ability)` — rolls 1d20 + ability modifier, appends to rollLog
+- `rollSavingThrow(cIdx, ability)` — rolls 1d20 + save bonus (proficient if in template.savingThrows) or ability modifier, appends to rollLog
+
+### Condition Tracking
+- Conditions work on ALL combatant types (monsters, players, ad-hoc)
+- Standard D&D conditions list + custom text option for non-standard effects
+- Three duration types: rounds (auto-decrement), save-based (DM reminder), indefinite (manual remove)
+- Condition chips visible on combatant rows without expanding
+- `addCondition(idx)` reads from inline form inputs (select + duration type dropdown + fields)
+- `removeCondition(idx, condIdx)` — splices out with × button on chip
+
+### Concentration
+- Works on monsters and players (not ad-hoc)
+- `setConcentration(idx, spellName)` / `dropConcentration(idx)`
+- Concentration chip shown on combatant row
+- `applyDamage()` warns with CON save DC when concentrating combatant takes damage (DC = max(10, damage/2))
 
 ### Passive Perception
 - `calcPassivePerception(t)` — 10 + Perception skill bonus (or WIS mod if no Perception skill)
@@ -166,6 +209,8 @@ All `onclick`/`onchange` handlers that interpolate variables use ONLY:
 
 User input flows through `this.value` in onchange handlers (reads from DOM element, never interpolated as string literal). This pattern must be maintained for any new UI that references user data in event handlers.
 
+**Exception for inline dice**: `renderDiceText()` interpolates dice notation strings (e.g., `'2d6+3'`) into onclick handlers. This is safe because the notation comes from `esc()`-escaped template data and the regex only matches `\d+d\d+([+-]\d+)?` patterns.
+
 ## Encounter/Combat Lifecycle
 - Deleting an encounter that has an active combat clears the combat state.
 - Currently single-combat only (`state.combat` is one object or null). Multi-combat support (array of combats with selector UI) planned for Phase 4.
@@ -180,8 +225,8 @@ User input flows through `this.value` in onchange handlers (reads from DOM eleme
 
 - **Phase 1** (done): Monster CRUD, party CRUD, encounter CRUD, dice engine, player roster, form dirty tracking, status flash, PP auto-calc
 - **Phase 2** (done): Combat core — initiative rolling with roll text display, turn management, HP tracking (single input + Dmg/Heal/THP), attack rolling (normal/adv/dis), crit damage rolling, crit/fumble highlighting (nat 20/nat 1), stacking roll log (persisted, clears on turn start), expandable combatant rows with column headers, ad-hoc combatants (sorted on add), reaction toggle, player AC, multiattack styling, init drop ends turn
-- **Phase 3** (next): Conditions, concentration, legendary actions/resistances (with recharge rolls), feature use tracking + recharge prompts, full feature text display in combat with inline dice rolling, ability check/save rolling, crit range on template schema. See `PLAN.md` for full details.
-- **Phase 4**: Monster groups, multi-combat support (combat array + selector UI for split sessions), import/export (CritterDB, 5etools, SquishText-encoded), storage indicator, update root index.html. See `PLAN.md` for full details.
+- **Phase 3** (done): Crit range on template (customizable crit threshold), full feature/trait text display in combat with inline clickable dice rolling, feature use tracking with DM-initiated recharge rolls, legendary actions (budget tracking, use buttons, auto-recharge on turn) and resistances (use counter), ability check/save rolling from detail panel, condition/effect tracking (rounds/save-based/indefinite, all combatant types, custom effects, condition chips on rows, auto-decrement), concentration tracking with damage DC warnings
+- **Phase 4** (next): Monster groups, multi-combat support (combat array + selector UI for split sessions), import/export (CritterDB, 5etools, SquishText-encoded), storage indicator, update root index.html. See `PLAN.md` for full details.
 
 ## Development Notes
 
@@ -189,5 +234,8 @@ User input flows through `this.value` in onchange handlers (reads from DOM eleme
 - Feature and legendary action sections show column headers (`dyn-header`) only when rows exist
 - Attack damage rows are nested inside attack cards with a left border indent
 - Roll log uses `renderRollLog()` for live DOM updates without full re-render when rolling
+- Condition form uses `updateConditionFields()` for dynamic field switching based on duration type dropdown
+- `applyTurnStartEffects()` is the single consolidated turn-start hook — all turn-start additions go here, not in `nextTurn()` or `editInit()` directly
+- Recharge rolls are DM-initiated (notification + button), NOT auto-rolled on turn start
 - No backwards compatibility concerns yet — tool is pre-release
 - Context: heroic/homebrew D&D — CR100 monsters, level 60 players, non-standard rules are expected

@@ -90,6 +90,12 @@
   .btn-toggle.active { background: var(--accent); color: white; border-color: var(--accent); }
   .btn-danger { color: var(--error); border-color: var(--error); background: transparent; }
   .btn-danger:hover { background: var(--error); color: white; }
+  .btn-accent { color: var(--accent); border-color: var(--accent); background: transparent; }
+  .btn-accent:hover { background: var(--accent); color: white !important; border-color: var(--accent); }
+  .btn-success { color: var(--success); border-color: var(--success); background: transparent; }
+  .btn-success:hover { background: var(--success); color: white !important; border-color: var(--success); }
+  .btn-warning { color: var(--warning); border-color: var(--warning); background: transparent; }
+  .btn-warning:hover { background: var(--warning); color: white !important; border-color: var(--warning); }
   .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.72rem; }
 
   /* ── Status Bar ── */
@@ -250,15 +256,17 @@
     box-shadow: 0 0 0 2px var(--accent-glow);
   }
   .dyn-row textarea { resize: vertical; min-height: 1.8rem; font-family: var(--mono); font-size: 0.75rem; }
-  .dyn-row .btn-remove {
+  .btn-remove {
     padding: 0.25rem 0.5rem;
     font-size: 0.72rem;
     color: var(--error);
-    border-color: transparent;
+    border: 1px solid var(--error);
     background: transparent;
     flex-shrink: 0;
+    cursor: pointer;
+    border-radius: var(--radius);
   }
-  .dyn-row .btn-remove:hover { background: var(--error); color: white; }
+  .btn-remove:hover { background: var(--error); color: white !important; }
   .dyn-label {
     font-size: 0.65rem;
     color: var(--text-dim);
@@ -326,11 +334,11 @@
   .roster-chip {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
-    padding: 0.3rem 0.6rem;
+    gap: 0.35rem;
+    padding: 0.4rem 0.7rem;
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     cursor: pointer;
     transition: all 0.15s;
     background: var(--surface2);
@@ -339,11 +347,16 @@
   .roster-chip.selected { background: var(--accent); color: white; border-color: var(--accent); }
   .roster-chip .chip-remove {
     font-size: 0.65rem;
-    color: var(--text-dim);
+    color: var(--error);
     cursor: pointer;
     margin-left: 0.1rem;
+    border: 1px solid var(--error);
+    border-radius: 3px;
+    padding: 0.1rem 0.25rem;
+    background: transparent;
+    line-height: 1;
   }
-  .roster-chip .chip-remove:hover { color: var(--error); }
+  .roster-chip .chip-remove:hover { background: var(--error); color: white; }
 
   /* ── Monster Picks (in encounter form) ── */
   .monster-pick {
@@ -587,6 +600,67 @@
   .roll-log-entry.crit { color: var(--success); font-weight: 700; }
   .roll-log-entry.fumble { color: var(--error); font-weight: 700; }
 
+  .dice-link {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: var(--mono);
+  }
+  .dice-link:hover { color: var(--text); }
+
+  .la-badge, .lr-badge {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    padding: 0.05rem 0.3rem;
+    border-radius: 4px;
+    margin-left: 0.3rem;
+  }
+  .la-badge { background: rgba(224, 176, 85, 0.15); color: var(--warning); }
+  .lr-badge { background: rgba(191, 92, 92, 0.15); color: var(--error); }
+
+  .condition-chip {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 0.1rem 0.4rem;
+    border-radius: 9px;
+    background: rgba(124, 92, 191, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(124, 92, 191, 0.3);
+    margin: 0.08rem;
+    white-space: nowrap;
+  }
+  .condition-chip.save-based { background: rgba(224, 176, 85, 0.12); color: var(--warning); border-color: rgba(224, 176, 85, 0.3); }
+  .turn-notify {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--warning);
+    background: rgba(224, 176, 85, 0.15);
+    border: 1px solid rgba(224, 176, 85, 0.3);
+    border-radius: 9px;
+    padding: 0.05rem 0.35rem;
+    margin-left: 0.2rem;
+    white-space: nowrap;
+    animation: notify-pulse 1.5s ease-in-out 3;
+  }
+  @keyframes notify-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .concentration-chip {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 0.1rem 0.4rem;
+    border-radius: 9px;
+    background: rgba(92, 191, 124, 0.12);
+    color: var(--success);
+    border: 1px solid rgba(92, 191, 124, 0.3);
+    margin: 0.05rem;
+    white-space: nowrap;
+  }
+
   /* ── Responsive ── */
   @supports (height: 100dvh) { body { height: 100dvh; } }
   @media (max-width: 640px) {
@@ -646,6 +720,7 @@ const SKILLS = [
   'Sleight of Hand', 'Stealth', 'Survival'
 ];
 const SIZES = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan'];
+const CONDITIONS = ['Blinded','Charmed','Deafened','Frightened','Grappled','Incapacitated','Invisible','Paralyzed','Petrified','Poisoned','Prone','Restrained','Stunned','Unconscious'];
 const STORAGE_KEYS = {
   templates: 'pf_enc_templates',
   groups: 'pf_enc_groups',
@@ -720,7 +795,7 @@ function newTemplate() {
     savingThrows: [], skills: [],
     damageResistances: '', damageImmunities: '', conditionImmunities: '', damageVulnerabilities: '',
     senses: '', passivePerception: null, languages: '', tactics: '',
-    initBonus: 0, initAdvantage: false,
+    initBonus: 0, initAdvantage: false, critRange: 20,
     attacks: [], // each: { name, bonus, note, damages: [{ dice, type, note }] }
     multiattack: '',
     features: [],
@@ -800,6 +875,31 @@ function rollDice(notation, opts = {}) {
   if (modifier) text += (modifier > 0 ? ' + ' : ' - ') + Math.abs(modifier) + ' = ' + total;
   else if (rolls.length > 1) text += ' = ' + total;
   return { rolls, modifier, total, text };
+}
+
+function renderDiceText(text, combatantIdx, sourceType, sourceIdx) {
+  return text.replace(/(\d+d\d+(?:[+-]\d+)?)/gi, function(match) {
+    var args = combatantIdx + ',\'' + match + '\'';
+    if (sourceType !== undefined) args += ',\'' + sourceType + '\',' + sourceIdx;
+    return '<span class="dice-link" onclick="event.stopPropagation();rollInlineDice(' + args + ')">' + match + '</span>';
+  });
+}
+
+function rollInlineDice(combatantIdx, notation, sourceType, sourceIdx) {
+  const c = state.combat.combatants[combatantIdx];
+  if (!c.rollLog) c.rollLog = [];
+  const result = rollDice(notation);
+  var label = notation;
+  if (sourceType && sourceIdx !== undefined) {
+    const template = getTemplate(c);
+    if (template) {
+      if (sourceType === 'feature' && template.features[sourceIdx]) label = esc(template.features[sourceIdx].name) + ': ' + notation;
+      else if (sourceType === 'la' && template.legendaryActions[sourceIdx]) label = esc(template.legendaryActions[sourceIdx].name) + ': ' + notation;
+    }
+  }
+  c.rollLog.push({ label: label, text: esc(result.text) + (result.text.indexOf('=') === -1 ? ' = ' + result.total : ''), cssClass: '' });
+  saveCombat();
+  renderRollLog(combatantIdx);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1026,7 +1126,10 @@ function renderTemplateForm() {
 
   // ── Attacks ──
   html += '<div class="form-section"><div class="form-section-title">Attacks</div>';
+  html += '<div class="form-grid cols-2">';
   html += formField('Multiattack', 'text', d.multiattack, 'formData.multiattack=this.value', 'Two claw attacks');
+  html += formField('Crits On', 'number', d.critRange || 20, 'formData.critRange=+this.value||20', '20');
+  html += '</div>';
   html += '<div style="margin-top:0.5rem">';
   d.attacks.forEach((a, i) => {
     html += '<div class="card" style="padding:0.6rem 0.75rem;margin-bottom:0.4rem">';
@@ -1329,7 +1432,7 @@ function renderEncounterForm() {
     html += '<div class="monster-pick">';
     html += '<span class="pick-name">' + esc(t ? t.name : '(deleted template)') + '</span>';
     html += '<input type="number" class="pick-qty" value="' + m.qty + '" min="1" max="20" onchange="formData.monsters[' + i + '].qty=+this.value">';
-    html += '<button class="btn-sm btn-remove" onclick="formData.monsters.splice(' + i + ',1);renderEncounterForm()" style="border:none">×</button>';
+    html += '<button class="btn-sm btn-remove" onclick="formData.monsters.splice(' + i + ',1);renderEncounterForm()">×</button>';
     html += '</div>';
   });
   html += '</div>';
@@ -1847,8 +1950,34 @@ function renderActiveCombat(el) {
     // Init
     html += '<span class="init-val">' + Math.floor(c.init) + '</span>';
 
-    // Name
-    html += '<span class="combatant-name type-' + c.type + '">' + esc(c.name) + '</span>';
+    // Name + badges
+    html += '<span class="combatant-name type-' + c.type + '">' + esc(c.name);
+    if (c.type === 'monster' && template) {
+      if (template.legendaryActionBudget > 0) {
+        const laRemaining = c.legendaryActionsRemaining !== undefined ? c.legendaryActionsRemaining : template.legendaryActionBudget;
+        html += '<span class="la-badge">LA:' + laRemaining + '/' + template.legendaryActionBudget + '</span>';
+      }
+      if (template.legendaryResistances > 0) {
+        const lrRemaining = c.legendaryResistancesRemaining !== undefined ? c.legendaryResistancesRemaining : template.legendaryResistances;
+        html += '<span class="lr-badge">LR:' + lrRemaining + '/' + template.legendaryResistances + '</span>';
+      }
+    }
+    // Condition chips (all combatant types)
+    if (c.conditions && c.conditions.length > 0) {
+      c.conditions.forEach(cond => {
+        html += '<span class="condition-chip' + (cond.durationType === 'save' ? ' save-based' : '') + '">' + esc(cond.name);
+        if (cond.durationType === 'rounds' && cond.duration) html += ' (' + cond.duration + ')';
+        html += '</span>';
+      });
+    }
+    if (c.concentration) {
+      html += '<span class="concentration-chip">Conc: ' + esc(c.concentration) + '</span>';
+    }
+    // Turn-start notification badge (visible when panel closed)
+    if (isCurrent && c.rollLog && c.rollLog.length > 0 && !c._expanded) {
+      html += '<span class="turn-notify">' + c.rollLog.length + ' alert' + (c.rollLog.length !== 1 ? 's' : '') + '</span>';
+    }
+    html += '</span>';
 
     // AC
     if (c.type === 'monster' && template) {
@@ -1913,8 +2042,8 @@ function renderCombatantDetail(c, idx, template) {
     html += '<div class="hp-controls">';
     html += '<input type="number" id="hpInput-' + idx + '" placeholder="0" min="0" onclick="event.stopPropagation()">';
     html += '<button class="btn-sm btn-danger" onclick="event.stopPropagation();applyDamage(' + idx + ')">Dmg</button>';
-    html += '<button class="btn-sm" style="color:var(--success);border-color:var(--success)" onclick="event.stopPropagation();applyHeal(' + idx + ')">Heal</button>';
-    html += '<button class="btn-sm" style="color:var(--warning);border-color:var(--warning)" onclick="event.stopPropagation();applyTempHp(' + idx + ')">THP</button>';
+    html += '<button class="btn-sm btn-success" onclick="event.stopPropagation();applyHeal(' + idx + ')">Heal</button>';
+    html += '<button class="btn-sm btn-warning" onclick="event.stopPropagation();applyTempHp(' + idx + ')">THP</button>';
     html += '</div>';
 
     // Multiattack
@@ -1935,11 +2064,11 @@ function renderCombatantDetail(c, idx, template) {
         html += '</span>';
         html += '<div class="spacer"></div>';
         html += '<button class="btn-sm" onclick="event.stopPropagation();rollAttack(' + idx + ',' + atkIdx + ')">Atk</button>';
-        html += '<button class="btn-sm" onclick="event.stopPropagation();rollAttack(' + idx + ',' + atkIdx + ',\'advantage\')" style="color:var(--success);border-color:var(--success)">Adv</button>';
-        html += '<button class="btn-sm" onclick="event.stopPropagation();rollAttack(' + idx + ',' + atkIdx + ',\'disadvantage\')" style="color:var(--error);border-color:var(--error)">Dis</button>';
+        html += '<button class="btn-sm btn-success" onclick="event.stopPropagation();rollAttack(' + idx + ',' + atkIdx + ',\'advantage\')">Adv</button>';
+        html += '<button class="btn-sm btn-danger" onclick="event.stopPropagation();rollAttack(' + idx + ',' + atkIdx + ',\'disadvantage\')">Dis</button>';
         if (atk.damages && atk.damages.length > 0) {
           html += '<button class="btn-sm" onclick="event.stopPropagation();rollDamageForAttack(' + idx + ',' + atkIdx + ')">Dmg</button>';
-          html += '<button class="btn-sm" onclick="event.stopPropagation();rollDamageForAttack(' + idx + ',' + atkIdx + ',true)" style="color:var(--success);border-color:var(--success)">Crit</button>';
+          html += '<button class="btn-sm btn-success" onclick="event.stopPropagation();rollDamageForAttack(' + idx + ',' + atkIdx + ',true)">Crit</button>';
         }
         html += '</div>';
         // Damage summary
@@ -1970,9 +2099,13 @@ function renderCombatantDetail(c, idx, template) {
     // Right column: Stats summary
     html += '<div>';
     html += '<div class="detail-section-title">Stats</div>';
-    html += '<div style="font-size:0.72rem;color:var(--text-muted);display:grid;grid-template-columns:repeat(3,1fr);gap:0.2rem">';
+    html += '<div style="font-size:0.72rem;color:var(--text-muted);display:grid;grid-template-columns:repeat(2,1fr);gap:0.15rem 0.5rem">';
     ABILITIES.forEach(ab => {
-      html += '<span>' + ab.toUpperCase() + ' ' + template.abilities[ab] + ' (' + modStr(template.abilities[ab]) + ')</span>';
+      html += '<div style="display:flex;align-items:center;gap:0.3rem">';
+      html += '<span style="min-width:4.5em">' + ab.toUpperCase() + ' ' + template.abilities[ab] + ' (' + modStr(template.abilities[ab]) + ')</span>';
+      html += '<button class="btn-sm" style="font-size:0.6rem;padding:0.05rem 0.25rem" onclick="event.stopPropagation();rollAbilityCheck(' + idx + ',\'' + ab + '\')">Chk</button>';
+      html += '<button class="btn-sm" style="font-size:0.6rem;padding:0.05rem 0.25rem" onclick="event.stopPropagation();rollSavingThrow(' + idx + ',\'' + ab + '\')">Save</button>';
+      html += '</div>';
     });
     html += '</div>';
 
@@ -1985,12 +2118,60 @@ function renderCombatantDetail(c, idx, template) {
     // Features
     if (template.features.length > 0) {
       html += '<div class="detail-section-title" style="margin-top:0.5rem">Features</div>';
-      template.features.forEach(f => {
-        html += '<div style="font-size:0.75rem;margin-bottom:0.2rem"><strong>' + esc(f.name) + '</strong>';
-        if (f.recharge) html += ' <span style="color:var(--warning)">(Recharge ' + esc(f.recharge) + ')</span>';
-        if (f.usesMax) html += ' <span style="color:var(--text-dim)">(' + f.usesMax + ' uses)</span>';
+      template.features.forEach((f, fIdx) => {
+        html += '<div style="margin-bottom:0.4rem;padding:0.3rem 0.5rem;background:var(--bg);border-radius:4px">';
+        html += '<div style="font-size:0.75rem;display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">';
+        html += '<strong>' + esc(f.name) + '</strong>';
+        if (f.recharge) html += '<span style="color:var(--warning)">(Recharge ' + esc(f.recharge) + ')</span>';
+        if (f.usesMax) {
+          const remaining = c.featureUses && c.featureUses[fIdx] !== undefined ? c.featureUses[fIdx] : f.usesMax;
+          html += '<span style="font-family:var(--mono);font-size:0.72rem;color:' + (remaining === 0 ? 'var(--error)' : 'var(--text-dim)') + '">Uses: ' + remaining + '/' + f.usesMax + '</span>';
+          html += '<button class="btn-sm btn-accent"' + (remaining <= 0 ? ' style="opacity:0.4"' : '') + ' onclick="event.stopPropagation();useFeature(' + idx + ',' + fIdx + ')"' + (remaining <= 0 ? ' disabled' : '') + '>Use</button>';
+          html += '<button class="btn-sm btn-success"' + (remaining >= f.usesMax ? ' style="opacity:0.4"' : '') + ' onclick="event.stopPropagation();restoreFeature(' + idx + ',' + fIdx + ')"' + (remaining >= f.usesMax ? ' disabled' : '') + '>Restore</button>';
+        }
+        if (f.recharge && f.usesMax) {
+          const remaining = c.featureUses && c.featureUses[fIdx] !== undefined ? c.featureUses[fIdx] : f.usesMax;
+          if (remaining === 0) {
+            html += '<button class="btn-sm btn-warning" onclick="event.stopPropagation();rollRecharge(' + idx + ',' + fIdx + ')">Roll Recharge</button>';
+          }
+        }
+        html += '</div>';
+        if (f.desc) {
+          html += '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.15rem">' + renderDiceText(esc(f.desc), idx, 'feature', fIdx) + '</div>';
+        }
         html += '</div>';
       });
+    }
+
+    // Legendary Actions
+    if (template.legendaryActionBudget > 0 && template.legendaryActions.length > 0) {
+      const laRemaining = c.legendaryActionsRemaining !== undefined ? c.legendaryActionsRemaining : template.legendaryActionBudget;
+      html += '<div class="detail-section-title" style="margin-top:0.5rem">Legendary Actions <span style="font-family:var(--mono);color:var(--warning)">' + laRemaining + '/' + template.legendaryActionBudget + '</span>';
+      html += ' <button class="btn-sm btn-success" style="font-size:0.65rem;padding:0.05rem 0.3rem' + (laRemaining >= template.legendaryActionBudget ? ';opacity:0.4' : '') + '" onclick="event.stopPropagation();restoreLegendaryAction(' + idx + ')"' + (laRemaining >= template.legendaryActionBudget ? ' disabled' : '') + '>Restore LA</button>';
+      html += '</div>';
+      template.legendaryActions.forEach((la, laIdx) => {
+        const canUse = laRemaining >= la.cost;
+        html += '<div style="margin-bottom:0.4rem;padding:0.3rem 0.5rem;background:var(--bg);border-radius:4px">';
+        html += '<div style="font-size:0.75rem;display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">';
+        html += '<strong>' + esc(la.name) + '</strong>';
+        html += '<span style="font-family:var(--mono);font-size:0.68rem;color:var(--text-dim)">Cost: ' + la.cost + '</span>';
+        html += '<button class="btn-sm btn-accent"' + (!canUse ? ' style="opacity:0.4"' : '') + ' onclick="event.stopPropagation();useLegendaryAction(' + idx + ',' + laIdx + ')"' + (!canUse ? ' disabled' : '') + '>Use</button>';
+        html += '</div>';
+        if (la.desc) {
+          html += '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.15rem">' + renderDiceText(esc(la.desc), idx, 'la', laIdx) + '</div>';
+        }
+        html += '</div>';
+      });
+    }
+
+    // Legendary Resistances
+    if (template.legendaryResistances > 0) {
+      const lrRemaining = c.legendaryResistancesRemaining !== undefined ? c.legendaryResistancesRemaining : template.legendaryResistances;
+      html += '<div class="detail-section-title" style="margin-top:0.5rem">Legendary Resistances <span style="font-family:var(--mono);color:' + (lrRemaining === 0 ? 'var(--error)' : 'var(--text-dim)') + '">' + lrRemaining + '/' + template.legendaryResistances + '</span></div>';
+      html += '<div style="display:flex;gap:0.3rem">';
+      html += '<button class="btn-sm btn-accent"' + (lrRemaining <= 0 ? ' style="opacity:0.4"' : '') + ' onclick="event.stopPropagation();useLegendaryResistance(' + idx + ')"' + (lrRemaining <= 0 ? ' disabled' : '') + '>Use LR</button>';
+      html += '<button class="btn-sm btn-success"' + (lrRemaining >= template.legendaryResistances ? ' style="opacity:0.4"' : '') + ' onclick="event.stopPropagation();restoreLegendaryResistance(' + idx + ')"' + (lrRemaining >= template.legendaryResistances ? ' disabled' : '') + '>Restore LR</button>';
+      html += '</div>';
     }
 
     // Tactics
@@ -2025,12 +2206,59 @@ function renderCombatantDetail(c, idx, template) {
   html += '<input type="text" value="' + esc(c.notes || '') + '" onchange="event.stopPropagation();setCombatantNotes(' + idx + ',this.value)" onclick="event.stopPropagation()" placeholder="DM notes...">';
   html += '</div>';
   if (c.dead) {
-    html += '<button class="btn-sm" onclick="event.stopPropagation();reviveCombatant(' + idx + ')" style="color:var(--success);border-color:var(--success)">Revive</button>';
+    html += '<button class="btn-sm btn-success" onclick="event.stopPropagation();reviveCombatant(' + idx + ')">Revive</button>';
   } else {
     html += '<button class="btn-sm btn-danger" onclick="event.stopPropagation();killCombatant(' + idx + ')">Kill</button>';
   }
   html += '<button class="btn-sm btn-danger" onclick="event.stopPropagation();removeCombatant(' + idx + ')">Remove</button>';
   html += '</div>';
+
+  // ── Conditions (all combatant types) ──
+  html += '<div style="margin-top:0.5rem">';
+  html += '<div class="detail-section-title">Conditions</div>';
+  // Existing conditions
+  if (c.conditions && c.conditions.length > 0) {
+    html += '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.4rem">';
+    c.conditions.forEach((cond, condIdx) => {
+      html += '<span class="condition-chip' + (cond.durationType === 'save' ? ' save-based' : '') + '" style="font-size:0.68rem;padding:0.15rem 0.4rem">';
+      html += esc(cond.name);
+      if (cond.durationType === 'rounds' && cond.duration) html += ' (' + cond.duration + 'r)';
+      if (cond.durationType === 'save') html += ' (' + cond.saveAbility.toUpperCase() + ' DC' + cond.saveDC + ')';
+      if (cond.source) html += ' [' + esc(cond.source) + ']';
+      html += ' <button class="btn-remove" style="padding:0.05rem 0.3rem;font-size:0.6rem;margin-left:0.15rem;vertical-align:middle" onclick="event.stopPropagation();removeCondition(' + idx + ',' + condIdx + ')">×</button>';
+      html += '</span>';
+    });
+    html += '</div>';
+  }
+  // Add condition form
+  html += '<div style="display:flex;gap:0.3rem;align-items:flex-end;flex-wrap:wrap;font-size:0.72rem">';
+  html += '<select id="condName-' + idx + '" onclick="event.stopPropagation()" style="padding:0.25rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.72rem">';
+  CONDITIONS.forEach(cn => { html += '<option value="' + cn + '">' + cn + '</option>'; });
+  html += '<option value="__custom__">Custom...</option>';
+  html += '</select>';
+  html += '<select id="condType-' + idx + '" onclick="event.stopPropagation()" onchange="event.stopPropagation();updateConditionFields(' + idx + ')" style="padding:0.25rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.72rem">';
+  html += '<option value="rounds">Rounds</option>';
+  html += '<option value="save">Save-based</option>';
+  html += '<option value="indefinite">Indefinite</option>';
+  html += '</select>';
+  html += '<span id="condFields-' + idx + '">';
+  html += '<input type="number" id="condDur-' + idx + '" placeholder="rounds" min="1" value="1" onclick="event.stopPropagation()" style="width:55px;padding:0.25rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.72rem;font-family:var(--mono)">';
+  html += '</span>';
+  html += '<input type="text" id="condSrc-' + idx + '" placeholder="source" onclick="event.stopPropagation()" style="width:70px;padding:0.25rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.72rem">';
+  html += '<button class="btn-sm btn-accent" onclick="event.stopPropagation();addCondition(' + idx + ')">Add</button>';
+  html += '</div>';
+  html += '</div>';
+
+  // ── Concentration (all combatant types) ──
+  if (c.type !== 'adhoc') {
+    html += '<div style="display:flex;gap:0.3rem;align-items:center;margin-top:0.4rem">';
+    html += '<span class="detail-section-title" style="margin-bottom:0">Concentration</span>';
+    html += '<input type="text" id="concInput-' + idx + '" value="' + esc(c.concentration || '') + '" placeholder="Spell name..." onclick="event.stopPropagation()" onchange="event.stopPropagation();setConcentration(' + idx + ',this.value)" style="flex:1;padding:0.25rem 0.4rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.72rem">';
+    if (c.concentration) {
+      html += '<button class="btn-sm btn-danger" onclick="event.stopPropagation();dropConcentration(' + idx + ')" style="font-size:0.68rem">Drop</button>';
+    }
+    html += '</div>';
+  }
 
   return html;
 }
@@ -2056,13 +2284,104 @@ function setPlayerAc(idx, value) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// ── Condition Tracking ──
+// ═══════════════════════════════════════════════════════════════
+
+function updateConditionFields(idx) {
+  const typeEl = document.getElementById('condType-' + idx);
+  const fieldsEl = document.getElementById('condFields-' + idx);
+  if (!typeEl || !fieldsEl) return;
+  const dtype = typeEl.value;
+  if (dtype === 'rounds') {
+    fieldsEl.innerHTML = '<input type="number" id="condDur-' + idx + '" placeholder="rounds" min="1" value="1" onclick="event.stopPropagation()" style="width:55px;padding:0.25rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.72rem;font-family:var(--mono)">';
+  } else if (dtype === 'save') {
+    fieldsEl.innerHTML = '<select id="condSaveAb-' + idx + '" onclick="event.stopPropagation()" style="padding:0.25rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.72rem">' +
+      ABILITIES.map(ab => '<option value="' + ab + '">' + ab.toUpperCase() + '</option>').join('') +
+      '</select>' +
+      '<input type="number" id="condSaveDC-' + idx + '" placeholder="DC" min="1" value="15" onclick="event.stopPropagation()" style="width:45px;padding:0.25rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.72rem;font-family:var(--mono)">';
+  } else {
+    fieldsEl.innerHTML = '';
+  }
+}
+
+function addCondition(idx) {
+  const c = state.combat.combatants[idx];
+  const nameEl = document.getElementById('condName-' + idx);
+  const typeEl = document.getElementById('condType-' + idx);
+  if (!nameEl || !typeEl) return;
+
+  let name = nameEl.value;
+  if (name === '__custom__') {
+    name = prompt('Custom condition/effect name:');
+    if (!name || !name.trim()) return;
+    name = name.trim();
+  }
+
+  const durationType = typeEl.value;
+  const condition = { name, durationType, source: '' };
+
+  const srcEl = document.getElementById('condSrc-' + idx);
+  if (srcEl && srcEl.value.trim()) condition.source = srcEl.value.trim();
+
+  if (durationType === 'rounds') {
+    const durEl = document.getElementById('condDur-' + idx);
+    condition.duration = Math.max(1, parseInt(durEl && durEl.value) || 1);
+  } else if (durationType === 'save') {
+    const abEl = document.getElementById('condSaveAb-' + idx);
+    const dcEl = document.getElementById('condSaveDC-' + idx);
+    condition.saveAbility = abEl ? abEl.value : 'con';
+    condition.saveDC = Math.max(1, parseInt(dcEl && dcEl.value) || 15);
+  }
+
+  if (!c.conditions) c.conditions = [];
+  c.conditions.push(condition);
+  setStatus(c.name + ': ' + name + ' condition added', 'success');
+  saveCombat();
+  render();
+}
+
+function removeCondition(idx, condIdx) {
+  const c = state.combat.combatants[idx];
+  if (!c.conditions || !c.conditions[condIdx]) return;
+  const name = c.conditions[condIdx].name;
+  c.conditions.splice(condIdx, 1);
+  setStatus(c.name + ': ' + name + ' condition removed', 'success');
+  saveCombat();
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Concentration Tracking ──
+// ═══════════════════════════════════════════════════════════════
+
+function setConcentration(idx, spellName) {
+  const c = state.combat.combatants[idx];
+  c.concentration = spellName.trim() || null;
+  if (c.concentration) {
+    setStatus(c.name + ' concentrating on ' + c.concentration, 'success');
+  }
+  saveCombat();
+  render();
+}
+
+function dropConcentration(idx) {
+  const c = state.combat.combatants[idx];
+  const spell = c.concentration;
+  c.concentration = null;
+  setStatus(c.name + ' dropped concentration' + (spell ? ' on ' + spell : ''), 'warning');
+  saveCombat();
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ── HP Tracking ──
 // ═══════════════════════════════════════════════════════════════
 
 function applyDamage(idx) {
   const input = document.getElementById('hpInput-' + idx);
   if (!input) return;
-  let dmg = Math.max(0, parseInt(input.value) || 0);
+  const originalDmg = Math.max(0, parseInt(input.value) || 0);
+  let dmg = originalDmg;
   if (dmg === 0) return;
 
   const c = state.combat.combatants[idx];
@@ -2087,6 +2406,12 @@ function applyDamage(idx) {
     setStatus(c.name + ' drops to 0 HP!', 'warning');
   } else {
     setStatus(c.name + ' takes damage. HP: ' + c.currentHp + '/' + maxHp, 'success');
+  }
+
+  // Concentration check warning
+  if (c.concentration && originalDmg > 0) {
+    const dc = Math.max(10, Math.floor(originalDmg / 2));
+    setStatus(c.name + ' is concentrating on ' + c.concentration + '! CON save DC ' + dc + ' needed', 'warning');
   }
 
   saveCombat();
@@ -2126,6 +2451,152 @@ function applyTempHp(idx) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// ── Feature Use Tracking ──
+// ═══════════════════════════════════════════════════════════════
+
+function useFeature(combatantIdx, featureIdx) {
+  const c = state.combat.combatants[combatantIdx];
+  const template = getTemplate(c);
+  if (!template) return;
+  const f = template.features[featureIdx];
+  if (!f || !f.usesMax) return;
+  if (!c.featureUses) c.featureUses = {};
+  if (c.featureUses[featureIdx] === undefined) c.featureUses[featureIdx] = f.usesMax;
+  if (c.featureUses[featureIdx] <= 0) return;
+  c.featureUses[featureIdx]--;
+  setStatus(c.name + ': ' + f.name + ' used (' + c.featureUses[featureIdx] + '/' + f.usesMax + ')', 'success');
+  saveCombat();
+  render();
+}
+
+function restoreFeature(combatantIdx, featureIdx) {
+  const c = state.combat.combatants[combatantIdx];
+  const template = getTemplate(c);
+  if (!template) return;
+  const f = template.features[featureIdx];
+  if (!f || !f.usesMax) return;
+  if (!c.featureUses) c.featureUses = {};
+  if (c.featureUses[featureIdx] === undefined) c.featureUses[featureIdx] = f.usesMax;
+  if (c.featureUses[featureIdx] >= f.usesMax) return;
+  c.featureUses[featureIdx]++;
+  setStatus(c.name + ': ' + f.name + ' restored (' + c.featureUses[featureIdx] + '/' + f.usesMax + ')', 'success');
+  saveCombat();
+  render();
+}
+
+function rollRecharge(combatantIdx, featureIdx) {
+  const c = state.combat.combatants[combatantIdx];
+  const template = getTemplate(c);
+  if (!template) return;
+  const f = template.features[featureIdx];
+  if (!f || !f.recharge) return;
+  const threshold = parseInt(f.recharge) || 6;
+  const result = rollDice('1d6');
+  if (!c.rollLog) c.rollLog = [];
+  if (!c.featureUses) c.featureUses = {};
+  if (result.total >= threshold) {
+    c.featureUses[featureIdx] = f.usesMax || 1;
+    c.rollLog.push({ label: 'Recharge: ' + esc(f.name), text: 'Rolled ' + result.total + ' (need ' + threshold + '+) — Recharged!', cssClass: 'crit' });
+    setStatus(f.name + ' recharged!', 'success');
+  } else {
+    c.rollLog.push({ label: 'Recharge: ' + esc(f.name), text: 'Rolled ' + result.total + ' (need ' + threshold + '+) — No recharge', cssClass: 'fumble' });
+    setStatus(f.name + ' did not recharge', 'warning');
+  }
+  saveCombat();
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Legendary Actions & Resistances ──
+// ═══════════════════════════════════════════════════════════════
+
+function useLegendaryAction(combatantIdx, laIdx) {
+  const c = state.combat.combatants[combatantIdx];
+  const template = getTemplate(c);
+  if (!template) return;
+  const la = template.legendaryActions[laIdx];
+  if (!la) return;
+  if (c.legendaryActionsRemaining === undefined) c.legendaryActionsRemaining = template.legendaryActionBudget;
+  if (c.legendaryActionsRemaining < la.cost) return;
+  c.legendaryActionsRemaining -= la.cost;
+  if (!c.rollLog) c.rollLog = [];
+  c.rollLog.push({ label: 'Legendary Action', text: esc(la.name) + ' (cost ' + la.cost + ') — LA ' + c.legendaryActionsRemaining + '/' + template.legendaryActionBudget + ' remaining', cssClass: '' });
+  setStatus(c.name + ': ' + la.name + ' (LA ' + c.legendaryActionsRemaining + '/' + template.legendaryActionBudget + ')', 'success');
+  saveCombat();
+  render();
+}
+
+function useLegendaryResistance(combatantIdx) {
+  const c = state.combat.combatants[combatantIdx];
+  const template = getTemplate(c);
+  if (!template) return;
+  if (c.legendaryResistancesRemaining === undefined) c.legendaryResistancesRemaining = template.legendaryResistances;
+  if (c.legendaryResistancesRemaining <= 0) return;
+  c.legendaryResistancesRemaining--;
+  if (!c.rollLog) c.rollLog = [];
+  c.rollLog.push({ label: 'Legendary Resistance', text: 'Used — LR ' + c.legendaryResistancesRemaining + '/' + template.legendaryResistances + ' remaining', cssClass: '' });
+  setStatus(c.name + ' uses Legendary Resistance (LR ' + c.legendaryResistancesRemaining + '/' + template.legendaryResistances + ')', 'warning');
+  saveCombat();
+  render();
+}
+
+function restoreLegendaryResistance(combatantIdx) {
+  const c = state.combat.combatants[combatantIdx];
+  const template = getTemplate(c);
+  if (!template) return;
+  if (c.legendaryResistancesRemaining === undefined) c.legendaryResistancesRemaining = template.legendaryResistances;
+  if (c.legendaryResistancesRemaining >= template.legendaryResistances) return;
+  c.legendaryResistancesRemaining++;
+  setStatus(c.name + ': LR restored (' + c.legendaryResistancesRemaining + '/' + template.legendaryResistances + ')', 'success');
+  saveCombat();
+  render();
+}
+
+function restoreLegendaryAction(combatantIdx) {
+  const c = state.combat.combatants[combatantIdx];
+  const template = getTemplate(c);
+  if (!template) return;
+  if (c.legendaryActionsRemaining === undefined) c.legendaryActionsRemaining = template.legendaryActionBudget;
+  if (c.legendaryActionsRemaining >= template.legendaryActionBudget) return;
+  c.legendaryActionsRemaining++;
+  setStatus(c.name + ': LA restored (' + c.legendaryActionsRemaining + '/' + template.legendaryActionBudget + ')', 'success');
+  saveCombat();
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Ability Check / Save Rolling ──
+// ═══════════════════════════════════════════════════════════════
+
+function rollAbilityCheck(combatantIdx, ability) {
+  const c = state.combat.combatants[combatantIdx];
+  const template = getTemplate(c);
+  if (!template) return;
+  const mod = abilityMod(template.abilities[ability]);
+  const notation = '1d20' + (mod >= 0 ? '+' + mod : String(mod));
+  const result = rollDice(notation);
+  if (!c.rollLog) c.rollLog = [];
+  c.rollLog.push({ label: ability.toUpperCase() + ' Check', text: esc(result.text) + ' = ' + result.total, cssClass: '' });
+  saveCombat();
+  renderRollLog(combatantIdx);
+}
+
+function rollSavingThrow(combatantIdx, ability) {
+  const c = state.combat.combatants[combatantIdx];
+  const template = getTemplate(c);
+  if (!template) return;
+  // Check for proficient saving throw
+  const st = template.savingThrows && template.savingThrows.find(s => s.ability === ability);
+  const mod = st ? st.bonus : abilityMod(template.abilities[ability]);
+  const notation = '1d20' + (mod >= 0 ? '+' + mod : String(mod));
+  const result = rollDice(notation);
+  if (!c.rollLog) c.rollLog = [];
+  c.rollLog.push({ label: ability.toUpperCase() + ' Save' + (st ? ' (prof)' : ''), text: esc(result.text) + ' = ' + result.total, cssClass: '' });
+  saveCombat();
+  renderRollLog(combatantIdx);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ── Attack Rolling ──
 // ═══════════════════════════════════════════════════════════════
 
@@ -2141,8 +2612,10 @@ function rollAttack(combatantIdx, attackIdx, mode) {
   const opts = mode === 'advantage' ? { advantage: true } : mode === 'disadvantage' ? { disadvantage: true } : {};
   const result = rollDice(notation, opts);
   const d20 = mode ? (result.rolls.length === 2 ? (mode === 'advantage' ? Math.max(...result.rolls) : Math.min(...result.rolls)) : result.rolls[0]) : result.rolls[0];
-  const critClass = d20 === 20 ? 'crit' : d20 === 1 ? 'fumble' : '';
-  const critLabel = d20 === 20 ? ' — NAT 20!' : d20 === 1 ? ' — NAT 1' : '';
+  const critThreshold = template.critRange || 20;
+  const isCrit = d20 >= critThreshold;
+  const critClass = isCrit ? 'crit' : d20 === 1 ? 'fumble' : '';
+  const critLabel = isCrit ? ' — NAT 20!' : d20 === 1 ? ' — NAT 1' : '';
   const modeLabel = mode === 'advantage' ? ' (Adv)' : mode === 'disadvantage' ? ' (Dis)' : '';
 
   c.rollLog.push({
@@ -2208,6 +2681,47 @@ function renderRollLog(combatantIdx) {
 // ── Turn Management ──
 // ═══════════════════════════════════════════════════════════════
 
+function applyTurnStartEffects(idx) {
+  const c = state.combat.combatants[idx];
+  const template = getTemplate(c);
+  c.reactionUsed = false;
+  c.rollLog = [];
+
+  // Feature recharge prompts (DM-initiated)
+  if (template && template.features) {
+    template.features.forEach((f, fIdx) => {
+      if (f.recharge && f.usesMax) {
+        const remaining = c.featureUses && c.featureUses[fIdx] !== undefined ? c.featureUses[fIdx] : f.usesMax;
+        if (remaining === 0) {
+          c.rollLog.push({ label: 'Recharge Available', text: esc(f.name) + ' — open detail panel to Roll Recharge', cssClass: '' });
+        }
+      }
+    });
+  }
+
+  // Legendary action recharge
+  if (template && template.legendaryActionBudget > 0) {
+    c.legendaryActionsRemaining = template.legendaryActionBudget;
+  }
+
+  // Condition duration decrement & save reminders
+  if (c.conditions && c.conditions.length > 0) {
+    c.conditions = c.conditions.filter(cond => {
+      if (cond.durationType === 'rounds') {
+        cond.duration--;
+        if (cond.duration <= 0) {
+          c.rollLog.push({ label: 'Condition Expired', text: cond.name + ' has worn off', cssClass: '' });
+          return false;
+        }
+        c.rollLog.push({ label: 'Condition', text: cond.name + ' — ' + cond.duration + ' round' + (cond.duration !== 1 ? 's' : '') + ' remaining', cssClass: '' });
+      } else if (cond.durationType === 'save') {
+        c.rollLog.push({ label: 'Save Needed', text: cond.name + ' — ' + cond.saveAbility.toUpperCase() + ' save DC ' + cond.saveDC, cssClass: '' });
+      }
+      return true;
+    });
+  }
+}
+
 function nextTurn() {
   const combat = state.combat;
   if (!combat || combat.round < 1) return;
@@ -2228,8 +2742,7 @@ function nextTurn() {
   if (wrapped) combat.round++;
 
   combat.turnIndex = next;
-  combat.combatants[next].reactionUsed = false;
-  combat.combatants[next].rollLog = [];
+  applyTurnStartEffects(next);
 
   setStatus('Round ' + combat.round + ' — ' + combat.combatants[next].name + '\'s turn', 'success');
   saveCombat();
@@ -2286,7 +2799,7 @@ function editInit(idx, value) {
       if (nextIdx === combat.turnIndex) break;
     } while (combat.combatants[nextIdx].dead);
     const nextId = combat.combatants[nextIdx].id;
-    combat.combatants[nextIdx].reactionUsed = false;
+    applyTurnStartEffects(nextIdx);
     combat.combatants.sort((a, b) => b.init - a.init);
     combat.turnIndex = combat.combatants.findIndex(c => c.id === nextId);
     if (combat.turnIndex < 0) combat.turnIndex = 0;

@@ -42,70 +42,32 @@ Built for heroic/homebrew D&D — CR100 monsters, level 60 players, non-standard
 - Encounter delete clears active combat if linked
 - Auto-save on every mutation, resume on page load
 
-## Phase 3 — Combat Features (next)
+## Phase 3 — Combat Features (done)
 
-### Condition/Effect Tracking
-- Condition chips on combatant rows (visible without expanding)
-- Add condition: pick from standard list (Blinded, Charmed, Deafened, Frightened, Grappled, Incapacitated, Invisible, Paralyzed, Petrified, Poisoned, Prone, Restrained, Stunned, Unconscious) or custom text
-- Each condition: `{ name, duration, durationType: 'rounds'|'minutes'|'indefinite', source }`
-- Auto-decrement duration on turn start, notify when expired
-- Store on combatant instance: `conditions[]`
-
-### Concentration Tracking
-- Toggle per combatant (players and monsters)
-- Visual indicator on combatant row
-- Warning when a concentrating combatant takes damage ("CON save DC X needed")
-- Auto-clear previous concentration when new one applied
-
-### Legendary Actions
-- Budget display: "LA: 2/3" on monster row or detail panel
-- Use button per legendary action in detail panel
-- Auto-recharge at start of monster's turn (configurable — some DMs use recharge rolls for homebrew)
-- Track `legendaryActionsRemaining` on combatant instance
-
-### Legendary Resistances
-- Budget display: "LR: 1/3"
-- Use button with confirmation
-- Track `legendaryResistancesRemaining` on combatant instance
-
-### Feature Use Tracking & Recharge
-- Features with `usesMax` show "Uses: 1/3" with use/restore buttons
-- Features with `recharge` (e.g., "Recharge 5-6") prompt a recharge roll at start of monster's turn
-- Recharge roll: 1d6, if >= recharge threshold, feature recharges — show result in roll log
-
-### Crit Range on Template Schema
-- Add `critRange: 20` (default) to monster template schema
-- Template form field for crit range
-- Attack rolling checks `d20 >= critRange` instead of `d20 === 20`
-
-### Full Feature/Trait Display in Combat
-- Show full feature description text in combat detail panel (currently only shows name/recharge/uses)
-- Include legendary actions with their full text
-- Detect dice notation patterns (NdN, NdN+M, NdN-M) in feature descriptions
-- Make them clickable — clicking rolls the dice and shows result inline or in roll log
-- Primary use case: healing features like "regains 1d6 hit points"
-
-### Ability Check/Save Rolling for Monsters
-- Quick-roll buttons in stats section of detail panel
-- Roll 1d20 + ability modifier (or saving throw bonus if proficient)
-- Results go to roll log
-
-### Other Phase 3 Items
-- Surprise round handling (surprised combatants skip first turn)
-- Dynamic notes/riders with round expiry (e.g., "Booming Blade: 5d8 thunder if moves", expires in 1 round)
-- Template override highlighting — UI marks overridden structural fields (AC, abilities, etc.) in distinct color
-- Damage log (collapsible panel showing all damage dealt this combat)
+- Crit range on template schema (`critRange`, default 20, customizable for homebrew 18-20 etc.)
+- Full feature/trait text display in combat detail panel with inline clickable dice rolling (`renderDiceText()`)
+- Feature use tracking: `featureUses` sparse map on combatant, Use/Restore buttons, depleted state display
+- DM-initiated recharge: notification in roll log at turn start, Roll Recharge button in detail panel
+- Legendary actions: LA budget display on row and detail panel, per-action Use buttons (cost-aware), auto-recharge on turn start
+- Legendary resistances: LR counter on row and detail panel, Use LR button
+- Ability check/save rolling: Chk/Save buttons per ability score in monster detail panel stats section
+- Condition/effect tracking: 14 standard D&D conditions + custom text, three duration types (rounds/save-based/indefinite), condition chips on ALL combatant rows, add/remove UI in all detail panels
+- Concentration tracking: text input per combatant, chip on row, damage triggers CON save DC warning (`max(10, damage/2)`)
+- Consolidated turn-start hook: `applyTurnStartEffects(idx)` handles reaction reset, rollLog clear, recharge prompts, LA recharge, condition decrement/save reminders
 
 ### Phase 3 Data Changes
 New fields on combatant instances (sparse, added on mutation only):
 ```json
 {
-  "conditions": [{ "name": "Frightened", "duration": 3, "durationType": "rounds", "source": "Dragon Fear" }],
-  "concentration": false,
+  "conditions": [
+    { "name": "Frightened", "durationType": "rounds", "duration": 3, "source": "Dragon Fear" },
+    { "name": "Stunned", "durationType": "save", "saveDC": 15, "saveAbility": "con", "source": "Power Word Stun" },
+    { "name": "Prone", "durationType": "indefinite", "source": "" }
+  ],
+  "concentration": "Wall of Fire",
   "legendaryActionsRemaining": 3,
   "legendaryResistancesRemaining": 3,
-  "featureUses": { "featureIndex": 2 },
-  "surprised": false
+  "featureUses": { "0": 2, "3": 0 }
 }
 ```
 New field on monster template:
@@ -114,6 +76,12 @@ New field on monster template:
   "critRange": 20
 }
 ```
+
+### Deferred to Phase 4+
+- Surprise round handling
+- Dynamic notes/riders with round expiry
+- Template override highlighting
+- Damage log (collapsible panel)
 
 ## Phase 4 — Organization, Multi-Combat & Import/Export
 
