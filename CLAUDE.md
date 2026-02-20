@@ -8,20 +8,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 
-Every tool is a **single self-contained HTML file** with embedded CSS and JavaScript. No build step, no bundler, no external dependencies, no frameworks. Each tool lives in its own directory with an `index.html` and a tool-specific `CLAUDE.md`.
+Every tool is a **single self-contained HTML file** with embedded CSS and JavaScript. No build step, no bundler, no external dependencies, no frameworks. Each tool lives in its own GitHub repo under the PromptFerret org, with its own `index.html` and `CLAUDE.md`.
 
 ```
-tools/
-├── index.html                    # Portal page linking to all tools
-├── squishtext/index.html         # Text compression/sharing tool
-├── squishtext/CLAUDE.md
-├── gsheet_md_exporter/index.html # D&D character sheet exporter
-├── gsheet_md_exporter/CLAUDE.md
-├── encounter/index.html          # D&D encounter manager & initiative tracker
-└── encounter/CLAUDE.md
+PromptFerret/
+├── tools/                          # This repo — portal + redirect stubs
+│   ├── index.html                  # Portal page linking to all tools
+│   ├── squishtext/index.html       # Redirect → SquishText repo
+│   ├── gsheet_md_exporter/index.html # Redirect → GSheetCharacterExporter repo
+│   ├── encounter/index.html        # Redirect → EncounterManager repo
+│   └── resource_viewer/index.html  # Redirect → MarkdownSite repo
+├── SquishText/                     # Text compression/sharing tool
+├── EncounterManager/               # D&D encounter manager & initiative tracker
+├── GSheetCharacterExporter/        # D&D character sheet exporter
+└── MarkdownSite/                   # Markdown document browser
 ```
 
-The portal (`index.html` at root) is a static landing page with cards linking to each tool.
+This repo (`tools/`) is a portal landing page with redirect stubs for the old sub-directory URLs. Each tool is in its own repo, deployed via GitHub Pages at `promptferret.github.io/<RepoName>/`.
 
 ## Development Workflow
 
@@ -50,10 +53,11 @@ Every tool follows: Header (h1 + tagline) → Toolbar (action buttons) → Statu
 
 ## Adding a New Tool
 
-1. Create `toolname/index.html` — single self-contained file, same dark theme
-2. Create `toolname/CLAUDE.md` — document architecture, position maps, key decisions
-3. Update root `index.html` — add a card linking to the new tool
-4. Uses only native browser APIs — no npm, no CDN scripts
+1. Create a new repo under the PromptFerret org — single self-contained `index.html`, same dark theme
+2. Create `CLAUDE.md` in the repo — document architecture, position maps, key decisions
+3. Update this repo's `index.html` — add a card linking to the new tool
+4. Add a redirect stub in this repo for any legacy URL
+5. Uses only native browser APIs — no npm, no CDN scripts
 
 ## Development Philosophy
 
@@ -65,4 +69,10 @@ Every tool follows: Header (h1 + tagline) → Toolbar (action buttons) → Statu
 
 ## Tool-Specific Documentation
 
-Each tool has its own `CLAUDE.md` with detailed architecture docs (position maps, data pipelines, format specs). **Always read the tool-specific CLAUDE.md before modifying a tool.**
+Each tool repo has its own `CLAUDE.md` with detailed architecture docs (position maps, data pipelines, format specs). **Always read the tool-specific CLAUDE.md before modifying a tool.**
+
+Tool repos:
+- [SquishText](https://github.com/PromptFerret/SquishText) — text compression/sharing
+- [EncounterManager](https://github.com/PromptFerret/EncounterManager) — D&D encounter manager & initiative tracker
+- [GSheetCharacterExporter](https://github.com/PromptFerret/GSheetCharacterExporter) — D&D character sheet exporter
+- [MarkdownSite](https://github.com/PromptFerret/MarkdownSite) — markdown document browser
