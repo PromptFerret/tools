@@ -154,10 +154,153 @@ New field on monster template:
 ## Future Phases
 
 ### Phase 5 — 5etools Importer
-- Discovery: investigate 5etools bestiary JSON format
-- Data mapping: map 5etools fields to canonical template schema
-- Pure function: `import5etools(json) → template[]`
-- UI: integrate into Import Monster modal (file type detection)
+
+#### Importer Architecture Pattern (applies to all future importers)
+
+All importers follow the same pattern:
+1. **Pure converter function**: `importXxx(json) → template[]` — takes parsed JSON, returns array of our template objects. No side effects, no DOM, no state mutation.
+2. **Format detection**: `doImportMonster()` currently only handles `.squishtext` files. For Phase 5+, update it to also accept `.json` files. Detection order: try SquishText decompress first → if that fails, try JSON.parse → if valid JSON, detect which format (our native format has `version` + `templates`, 5etools has `monster` array or top-level 5etools fields like `str`/`dex`/`ac` as array).
+3. **Smart merge**: Same ID-based dedup as existing import. Imported templates get new `uuid()` IDs (since external formats don't use our IDs).
+4. **Status reporting**: Show count of imported vs skipped (by name dedup for external formats since they have no IDs — dedup by name to avoid importing the same monster twice).
+
+#### 5etools JSON Format (from user-exported data)
+
+A 5etools export is either:
+- A wrapper object: `{ "monster": [ ...entries... ] }`
+- A single monster object (top-level, has `name`, `str`, `ac` as array, etc.)
+
+**Detection**: If parsed JSON has a `monster` array → 5etools multi. If it has `str` (number) + `ac` (array) → 5etools single.
+
+#### 5etools Monster Entry — Key Fields
+
+```
+name            string          "The World Ender"
+source          string          "MonstersOfDrakkenheim" (ignore)
+size            string[]        ["G"] — size codes: F/D/T/S/M/L/H/G
+type            string|object   "aberration" or { type: "aberration", tags: ["Epic Boss"] }
+ac              array           [23] or [{ ac: 15, from: ["natural armor"] }]
+hp              object          { average: 60, formula: "8d8+24" } or { special: "..." }
+speed           object          { walk: 60, fly: 80, swim: 30, burrow: 20, climb: 20 }
+str/dex/con/int/wis/cha  number Top-level ability scores (not nested)
+save            object|null     { dex: "+11", int: "+10" } — string values with +/-
+skill           object|null     { athletics: "+19", perception: "+19" }
+senses          string[]        ["Truesight 120 ft."]
+passive         number          29 (passive perception)
+resist          array|null      ["acid", "cold"] or [{ resist: [...], note: "..." }]
+immune          array|null      damage immunities (same format as resist)
+vulnerable      array|null      damage vulnerabilities (same format)
+conditionImmune array|null      ["charmed", "frightened"]
+languages       array|null      ["Common", "Draconic"]
+cr              string|object   "30" or "1/2" or { cr: "10", lair: "11" }
+trait           array|null      [{ name, entries[] }] — passive features
+action          array|null      [{ name, entries[] }] — actions (attacks mixed in)
+legendary       array|null      [{ name, entries[] }] — legendary actions
+legendaryActions number|null    LA budget (default 3 if legendary array exists)
+legendaryHeader  string[]|null  custom legendary action intro text
+```
+
+#### 5etools Rich Text Tags (must strip/convert)
+
+Entries use `{@tag content}` markup. Key tags to handle:
+
+```
+{@damage 5d10 + 10}              → "5d10 + 10"
+{@dice 2d6}                      → "2d6"
+{@hit 19}                        → "+19"
+{@dc 27}                         → "DC 27"
+{@h}                             → "Hit: " (marks hit description)
+{@recharge 5}                    → "(Recharge 5-6)" — extract for recharge field
+{@recharge}                      → "(Recharge 6)"
+{@condition Grappled|XPHB}       → "Grappled" (take first part before |)
+{@spell Wish|XPHB}               → "Wish"
+{@creature Zombie|MM}            → "Zombie"
+{@item Shield|XPHB}              → "Shield"
+{@skill Perception}              → "Perception"
+{@atkr m}                        → "" (melee attack indicator — use for detection)
+{@atkr r}                        → "" (ranged attack indicator)
+{@atkr ms}                       → "" (melee spell attack)
+{@atkr rs}                       → "" (ranged spell attack)
+{@actSave con}                   → "Constitution saving throw"
+{@actSaveFail}                   → "Failure:"
+{@actSaveSuccess}                → "Success:"
+{@actSaveSuccessOrFail}          → "Success or Failure:"
+{@variantrule Hit Points|XPHB}   → "Hit Points"
+{@table Mutations|Source}         → "Mutations"
+```
+
+**General rule**: `{@tag content|source|...}` → take `content` (first segment before `|`). Exception: `{@h}` → "Hit: ", `{@recharge N}` → extract for recharge field.
+
+Implement as `strip5eToolsTags(text)` — regex-based, handles nested tags.
+
+#### Field Mapping: 5etools → Our Template
+
+| 5etools | Our Template | Transform |
+|---------|-------------|-----------|
+| `name` | `name` | Direct |
+| `size[0]` | `size` | Map code: F→Fine, D→Diminutive, T→Tiny, S→Small, M→Medium, L→Large, H→Huge, G→Gargantuan |
+| `type` or `type.type` | `type` | Extract string, capitalize |
+| `type.tags` | (discard) | Tags like "Epic Boss" — no field for this |
+| `ac[0]` or `ac[0].ac` | `ac` | Number extraction |
+| `ac[0].from` | `acNote` | Join array: `"natural armor"` → `"Natural Armor"` |
+| `hp.average` | `hpMax` | Direct number |
+| `hp.formula` | `hpFormula` | Direct string (already in NdN+M format) |
+| `hp.special` | `hpFormula` (as note) | Store in hpFormula, set hpMax to 0 or parse if possible |
+| `speed` | `speed` | Format: `"60 ft., fly 80 ft., swim 30 ft."` |
+| `str/dex/con/int/wis/cha` | `abilities` | Nest into `{ str, dex, con, int, wis, cha }` |
+| `save` | `savingThrows` | Parse `{ dex: "+11" }` → `[{ ability: "dex", bonus: 11 }]` |
+| `skill` | `skills` | Parse to skill array format |
+| `senses` | `senses` | Join array to string |
+| `passive` | `passivePerception` | Direct number |
+| `resist` | `damageResistances` | Join/format to string, capitalize |
+| `immune` | `damageImmunities` | Join/format to string, capitalize |
+| `vulnerable` | `damageVulnerabilities` | Join/format to string, capitalize |
+| `conditionImmune` | `conditionImmunities` | Join, capitalize: `"Charmed, Frightened"` |
+| `languages` | `languages` | Join array or `"None"` |
+| `cr` or `cr.cr` | `cr` | Direct string |
+| `dex` mod | `initBonus` | `Math.floor((dex - 10) / 2)` |
+| — | `initAdvantage` | `false` (default) |
+| `trait[]` | `features[]` | Map `{name, entries[]}` → `{name, desc, recharge, uses, usesMax}`. Desc = join entries + strip tags. Extract recharge from name if present. |
+| `action[]` | `attacks[]` + `features[]` + `multiattack` | **Complex** — see below |
+| `legendary[]` | `legendaryActions[]` | Map entries, extract cost from name pattern `"(Costs N Actions)"` |
+| `legendaryActions` | `legendaryActionBudget` | Direct number, default 3 |
+| — | `legendaryResistances` | Extract from traits if "Legendary Resistance" trait exists, parse `"(N/Day)"` |
+| — | `tactics` | `""` (empty — not in 5etools data) |
+| — | `groups` | `[]` |
+| — | `critRange` | `20` (default) |
+
+#### Action Parsing (the complex part)
+
+The `action[]` array mixes attacks, multiattack, and non-attack abilities. Detection:
+
+1. **Multiattack**: Action named "Multiattack" → extract `entries[0]` text (stripped) → `template.multiattack`
+2. **Melee/Ranged attack**: Entry text contains `{@atkr m}` or `{@atkr r}` or `{@hit N}` → parse as attack:
+   - Attack bonus: extract from `{@hit N}` → number
+   - Reach/range: extract from text like `"reach 15 ft."` or `"range 30/120 ft."` → `note`
+   - Damage: extract from `{@damage NdN + N}` → `damages[]` entries with type from surrounding text
+   - Multiple damage riders: some attacks have multiple `{@damage}` tags (e.g., slashing + fire)
+3. **Non-attack actions**: Everything else → append to `features[]` with `recharge` extracted from name if present (e.g., `"Bellowing Roar (Recharges after a Short or Long Rest)"` → recharge as note, or `{@recharge 5}` → recharge `"5-6"`)
+
+#### Implementation Steps
+
+1. **`strip5eToolsTags(text)`** — regex to convert all `{@tag ...}` to plain text. Handle nested tags.
+2. **`parse5eToolsSize(sizeArr)`** — map size codes to full names
+3. **`parse5eToolsAc(acArr)`** — extract AC number and note
+4. **`parse5eToolsSpeed(speedObj)`** — format speed object to string
+5. **`parse5eToolsSaves(saveObj)`** — parse save bonuses to our format
+6. **`parse5eToolsResist(arr)`** — handle simple strings and conditional objects
+7. **`parse5eToolsAction(actionArr)`** — split into multiattack / attacks / features
+8. **`parse5eToolsLegendary(legArr)`** — extract costs, map entries
+9. **`import5etools(json)`** — orchestrator: detect single vs array, map each entry using above helpers
+10. **Update `doImportMonster()`** — accept `.json` files, detect format, route to converter
+11. **Update Import Monster modal** — add `.json` to file accept attribute, update help text
+
+#### Edge Cases
+- `hp.special` (scaling HP like "X plus Y per player") — store formula text, set hpMax to parsed base or 0
+- Conditional resistances: `[{ resist: ["bludgeoning", "piercing"], note: "from nonmagical attacks" }]` — flatten with note
+- CR as object: `{ cr: "10", lair: "11" }` — use `cr` field
+- Missing `legendary` array but has legendary resistance trait — still parse LR count from trait text
+- Actions with `"(1/Round)"` or `"(Recharges after a Short or Long Rest)"` in name — extract to recharge/uses
+- Entries that are arrays of strings (join with newline before stripping tags)
 
 ### Phase 6 — CritterDB Importer
 - Discovery: investigate CritterDB JSON export format

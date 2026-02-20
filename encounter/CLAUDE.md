@@ -5,7 +5,7 @@ A single self-contained HTML file (`index.html`) for D&D encounter management an
 
 ## Code Map
 
-The file is ~3200+ lines. Rough section layout:
+The file is ~3300+ lines. Rough section layout:
 
 | Section | Contents |
 |---------|----------|
@@ -266,5 +266,6 @@ User input flows through `this.value` in onchange handlers (reads from DOM eleme
 - **Import/Export**: Uses embedded SquishText-compatible compression (deflate-raw + CRC32). `.squishtext` file extension. SquishText format only (no JSON fallback). Smart merge on import — skips duplicates by ID, keeps existing data, adds new items only.
 - **Save Backup / Load Backup**: Full data backup/restore. Load Backup uses direct file picker (no modal). Save Backup downloads `.squishtext` file.
 - **Import Monster / Export Monster**: Per-monster `.squishtext` files. Export button on each monster card. Import Monster button in toolbar (visible on Monsters tab only). Import modal supports multiselect — processes multiple `.squishtext` files at once, dedupes by ID across files.
+- **External importers** (Phase 5+): Each importer is a pure function `importXxx(json) → template[]`. Format detection in `doImportMonster()`: try SquishText decompress → try JSON.parse → detect format (our native has `version`+`templates`, 5etools has `monster` array or top-level `str`/`ac`-as-array). External imports get new `uuid()` IDs and dedup by name (not ID, since external formats don't use our IDs). See `PLAN.md` Phase 5 for 5etools field mapping, tag stripping, and action parsing details.
 - No backwards compatibility concerns yet — tool is pre-release
 - Context: heroic/homebrew D&D — CR100 monsters, level 60 players, non-standard rules are expected
