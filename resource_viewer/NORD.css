@@ -1,0 +1,16 @@
+/* Nord theme override */
+:root {
+  --bg: #2E3440;
+  --surface: #3B4252;
+  --surface2: #434C5E;
+  --accent: #88C0D0;
+  --accent-hover: #8FBCBB;
+  --accent-glow: rgba(136, 192, 208, 0.25);
+  --text: #ECEFF4;
+  --text-muted: #D8DEE9;
+  --text-dim: #4C566A;
+  --border: #4C566A;
+  --success: #A3BE8C;
+  --warning: #EBCB8B;
+  --error: #BF616A;
+}

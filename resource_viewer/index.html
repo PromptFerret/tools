@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Resource Viewer | Markdown Document Browser</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO -->
+    <meta name="description" content="Free, single-file markdown document viewer with Obsidian wikilink support, callouts, cross-document linking, and custom themes. Host your Obsidian vault or markdown docs with zero dependencies.">
+    <meta name="keywords" content="markdown viewer, obsidian vault viewer, document browser, wikilinks, markdown renderer, obsidian callouts, markdown to html, static site, no build step">
+    <meta name="author" content="PromptFerret">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://promptferret.github.io/tools/resource_viewer/">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Resource Viewer — Markdown Document Browser">
+    <meta property="og:description" content="Single-file markdown viewer with Obsidian wikilinks, callouts, custom themes, and cross-document linking. No build step, no dependencies — just drop your .md files and serve.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://promptferret.github.io/tools/resource_viewer/">
+    <meta property="og:site_name" content="PromptFerret Tools">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Resource Viewer — Markdown Document Browser">
+    <meta name="twitter:description" content="Single-file markdown viewer with Obsidian wikilinks, callouts, custom themes, and cross-document linking. Zero dependencies.">
+
+    <!-- Cache Control -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+<style>
+  :root {
+    --bg: #0f0f17;
+    --surface: #1a1a2e;
+    --surface2: #252545;
+    --accent: #7c5cbf;
+    --accent-hover: #9b7ed8;
+    --accent-glow: rgba(124, 92, 191, 0.25);
+    --text: #e8e6f0;
+    --text-muted: #8a8a9a;
+    --text-dim: #5a5a6a;
+    --border: #2a2a3e;
+    --success: #4ecb71;
+    --warning: #e0b055;
+    --error: #e05565;
+    --mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  @supports (height: 100dvh) {
+    body { height: 100dvh; }
+  }
+
+  /* ── Header (loaded from HEADER.md) ── */
+  .header {
+    display: none;
+    padding: 1.5rem 2rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .header .document {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  .header .document h1 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+  .header .document p {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    margin: 0.25rem 0 0;
+  }
+
+  /* ── Status Bar ── */
+  #statusEl {
+    font-size: 0.75rem;
+    padding: 0.35rem 1.5rem;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    min-height: 1.6rem;
+  }
+  #statusEl:empty { display: none; }
+  #statusEl.error { color: var(--error); }
+  #statusEl.success { color: var(--success); animation: status-flash 0.4s ease-out; }
+  #statusEl.warning { color: var(--warning); }
+  #statusEl.loading { color: var(--text-muted); }
+  @keyframes status-flash {
+    0% { background: rgba(78, 203, 113, 0.2); }
+    100% { background: var(--bg); }
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .toolbar .sep {
+    width: 1px;
+    height: 1.5rem;
+    background: var(--border);
+    margin: 0 0.25rem;
+  }
+  .toolbar .spacer { flex: 1; }
+
+  .toolbar button {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.15s;
+    background: var(--surface2);
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .toolbar button:hover { background: var(--accent); color: white; border-color: var(--accent); }
+  .toolbar .btn-toggle.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  /* ── Content Area ── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+  }
+
+  .document {
+    max-width: 800px;
+    margin: 0 auto;
+    font-size: 0.92rem;
+    line-height: 1.7;
+  }
+
+  /* ── Document Typography ── */
+  .document h1 {
+    font-size: 1.7rem;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.4rem;
+    margin: 1.5rem 0 0.75rem;
+  }
+  .document h1:first-child { margin-top: 0; }
+
+  .document h2 {
+    font-size: 1.25rem;
+    color: var(--text);
+    margin: 1.5rem 0 0.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.25rem;
+  }
+
+  .document h3 {
+    font-size: 1.05rem;
+    color: var(--text-muted);
+    margin: 1.25rem 0 0.4rem;
+  }
+
+  .document h4 {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    margin: 1rem 0 0.35rem;
+  }
+
+  .document h5 {
+    font-size: 0.88rem;
+    color: var(--text-dim);
+    margin: 0.85rem 0 0.3rem;
+  }
+
+  .document h6 {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    margin: 0.75rem 0 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .document p {
+    margin: 0.6rem 0;
+  }
+
+  .document strong { color: var(--text); }
+
+  .document a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .document a:hover { text-decoration: underline; }
+
+  .document img {
+    max-width: 100%;
+    border-radius: var(--radius);
+    margin: 0.5rem 0;
+  }
+
+  /* ── Lists ── */
+  .document ul, .document ol {
+    margin: 0.5rem 0 0.5rem 1.5rem;
+    padding: 0;
+  }
+
+  .document li {
+    margin: 0.2rem 0;
+    font-size: 0.9rem;
+  }
+
+  /* ── Tables ── */
+  .document table {
+    border-collapse: collapse;
+    margin: 0.75rem 0;
+    width: auto;
+    max-width: 100%;
+    overflow-x: auto;
+    display: block;
+  }
+
+  .document th, .document td {
+    border: 1px solid var(--border);
+    padding: 0.35rem 0.7rem;
+    font-size: 0.85rem;
+    text-align: left;
+  }
+
+  .document th {
+    background: var(--surface2);
+    font-weight: 600;
+  }
+
+  .document td:empty { padding: 0.35rem 0.7rem; }
+
+  /* ── Code ── */
+  .document pre {
+    background: #0a0a12;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin: 0.75rem 0;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--text);
+  }
+
+  .document pre code {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+  }
+
+  .document code {
+    background: var(--surface2);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 0.85em;
+  }
+
+  /* ── Blockquotes ── */
+  .document blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 1rem;
+    margin: 0.75rem 0;
+    color: var(--text-muted);
+  }
+
+  .document blockquote p {
+    margin: 0.3rem 0;
+  }
+
+  /* ── Obsidian Callouts ── */
+  .obsidian-callout {
+    border-radius: 6px;
+    font-size: 0.92em;
+    background-color: var(--callout-bg);
+    border-left: 4px solid var(--callout-border);
+    margin: 0.75rem 0;
+    padding: 0.75em 1em;
+    overflow: visible;
+  }
+  .callout-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    font-weight: bold;
+    white-space: normal;
+    word-break: break-word;
+  }
+  .callout-header.collapsible {
+    cursor: pointer;
+    user-select: none;
+  }
+  .callout-icon { font-size: 1em; width: 1.25em; text-align: center; }
+  .callout-arrow { font-size: 0.8em; margin-left: auto; }
+  .callout-content p { margin: 0.3rem 0; }
+  .callout-content p:last-child { margin-bottom: 0; }
+  .callout-content.collapsed { display: none; }
+
+  .callout-note    { --callout-border: #4e88e2; --callout-bg: rgba(78, 136, 226, 0.15); }
+  .callout-abstract { --callout-border: #6c757d; --callout-bg: rgba(173, 181, 189, 0.1); }
+  .callout-info    { --callout-border: #17a2b8; --callout-bg: rgba(23, 162, 184, 0.1); }
+  .callout-tip     { --callout-border: #28a745; --callout-bg: rgba(40, 167, 69, 0.1); }
+  .callout-success { --callout-border: #198754; --callout-bg: rgba(25, 135, 84, 0.1); }
+  .callout-question { --callout-border: #f39c12; --callout-bg: rgba(243, 156, 18, 0.08); }
+  .callout-warning { --callout-border: #ffc107; --callout-bg: rgba(255, 193, 7, 0.08); }
+  .callout-failure { --callout-border: #fd7e14; --callout-bg: rgba(253, 126, 20, 0.08); }
+  .callout-danger  { --callout-border: #dc3545; --callout-bg: rgba(220, 53, 69, 0.08); }
+  .callout-bug     { --callout-border: #e83e8c; --callout-bg: rgba(232, 62, 140, 0.08); }
+  .callout-example { --callout-border: #20c997; --callout-bg: rgba(32, 201, 151, 0.08); }
+  .callout-quote   { --callout-border: #ced4da; --callout-bg: rgba(206, 212, 218, 0.05); }
+  .callout-summary { --callout-border: #0d6efd; --callout-bg: rgba(13, 110, 253, 0.1); }
+
+  .callout-note .callout-header    { color: #4e88e2; }
+  .callout-abstract .callout-header { color: #adb5bd; }
+  .callout-info .callout-header    { color: #17a2b8; }
+  .callout-tip .callout-header     { color: #28a745; }
+  .callout-success .callout-header { color: #198754; }
+  .callout-question .callout-header { color: #f39c12; }
+  .callout-warning .callout-header { color: #ffc107; }
+  .callout-failure .callout-header { color: #fd7e14; }
+  .callout-danger .callout-header  { color: #dc3545; }
+  .callout-bug .callout-header     { color: #e83e8c; }
+  .callout-example .callout-header { color: #20c997; }
+  .callout-quote .callout-header   { color: #ced4da; }
+  .callout-summary .callout-header { color: #0d6efd; }
+
+  /* ── Statblock Callout (D&D parchment) ── */
+  .callout-statblock {
+    --callout-border: #a52a2a;
+    --callout-bg: #fdf1dc;
+    background: var(--callout-bg);
+    border-left: 4px solid var(--callout-border);
+    font-family: Georgia, serif;
+    padding: 1em 1.5em;
+    margin: 1.5em 0;
+    color: #111;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    line-height: 1.6;
+  }
+  .callout-statblock .callout-header {
+    color: #a00;
+    font-family: Georgia, serif;
+    font-size: 1.15em;
+    font-weight: bold;
+    border-bottom: 2px solid #a52a2a;
+    padding-bottom: 0.3em;
+    margin-bottom: 0.8em;
+  }
+  .callout-statblock .callout-content h3,
+  .callout-statblock .callout-content h4 {
+    font-family: Georgia, serif;
+    color: #7b1e1e;
+    font-size: 1.15em;
+    border-bottom: 2px solid #c88;
+    margin-top: 1.2em;
+    margin-bottom: 0.5em;
+  }
+  .callout-statblock .callout-content hr {
+    border: none;
+    border-bottom: 1px solid #c88;
+    margin: 1em 0;
+  }
+  .callout-statblock .callout-content p { margin: 0.5em 0; }
+  .callout-statblock strong { color: #a52a2a; font-weight: bold; }
+  .callout-statblock em { color: #a52a2a; font-style: italic; }
+  .callout-statblock a { color: #7b1e1e; }
+  .callout-statblock code {
+    background: rgba(165, 42, 42, 0.1);
+    color: #a52a2a;
+  }
+
+  /* ── Copy Buttons ── */
+  .document pre { position: relative; }
+  .copy-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    opacity: 0.15;
+    transition: opacity 0.2s;
+    line-height: 0;
+  }
+  .copy-btn svg { width: 18px; height: 18px; stroke: var(--text); fill: none; }
+  .document pre:hover .copy-btn { opacity: 0.7; }
+  .copy-btn:hover { opacity: 1 !important; }
+
+  .image-container { position: relative; display: inline-block; }
+  .copy-img-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    line-height: 0;
+  }
+  .copy-img-btn svg { width: 16px; height: 16px; stroke: #fff; fill: none; }
+  .image-container:hover .copy-img-btn { opacity: 0.8; }
+  .copy-img-btn:hover { opacity: 1 !important; }
+
+  .inline-code-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .copy-inline-btn {
+    background: none;
+    border: none;
+    padding: 1px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+    line-height: 0;
+    vertical-align: middle;
+  }
+  .copy-inline-btn svg { width: 13px; height: 13px; stroke: var(--text-muted); fill: none; }
+  .inline-code-wrap:hover .copy-inline-btn { opacity: 0.7; }
+  .copy-inline-btn:hover { opacity: 1 !important; }
+
+  /* ── Horizontal Rules ── */
+  .document hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.5rem 0;
+  }
+
+  /* ── Error State ── */
+  .doc-error {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+  }
+  .doc-error h2 {
+    color: var(--error);
+    border: none;
+    margin-bottom: 0.5rem;
+  }
+  .doc-error code {
+    background: var(--surface2);
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+  }
+
+  /* ── Footer (loaded from FOOTER.md) ── */
+  .footer {
+    display: none;
+    padding: 0.4rem 1.5rem;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    text-align: center;
+  }
+  .footer .document {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    line-height: 1.4;
+  }
+  .footer .document p { margin: 0; }
+  .footer .document a { color: var(--accent); text-decoration: none; }
+  .footer .document a:hover { text-decoration: underline; }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .content { padding: 1rem; }
+    .document { font-size: 0.88rem; }
+    .document h1 { font-size: 1.4rem; }
+    .document h2 { font-size: 1.1rem; }
+    .toolbar { flex-wrap: wrap; }
+    .footer { padding: 0.4rem 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header" id="headerEl">
+  <div class="document" id="headerContent"></div>
+</div>
+
+<div class="toolbar">
+  <button class="btn-toggle active" id="btnRendered" onclick="setView('rendered')">Rendered</button>
+  <button class="btn-toggle" id="btnSource" onclick="setView('source')">Source</button>
+  <div class="sep"></div>
+  <button class="btn-toggle" id="btnThin" onclick="setWidth('thin')">Thin</button>
+  <button class="btn-toggle active" id="btnNormal" onclick="setWidth('normal')">Normal</button>
+  <button class="btn-toggle" id="btnWide" onclick="setWidth('wide')">Wide</button>
+  <div class="spacer"></div>
+  <button onclick="copyLink()">Copy Link</button>
+</div>
+
+<div id="statusEl"></div>
+
+<div class="content">
+  <div class="document" id="docContent"></div>
+</div>
+
+<div class="footer" id="footerEl">
+  <div class="document" id="footerContent"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// ── Status Bar ──
+// ═══════════════════════════════════════════════════════════════
+
+function setStatus(msg, type) {
+  const el = document.getElementById('statusEl');
+  el.textContent = msg;
+  el.className = '';
+  void el.offsetWidth;
+  el.className = type || '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Hash Routing & Document Loading ──
+// ═══════════════════════════════════════════════════════════════
+
+let currentBasePath = '';
+let pendingAnchor = null;
+let rawMarkdown = '';
+let currentView = 'rendered';
+
+// ═══════════════════════════════════════════════════════════════
+// ── Toolbar ──
+// ═══════════════════════════════════════════════════════════════
+
+function setView(mode) {
+  currentView = mode;
+  document.getElementById('btnRendered').classList.toggle('active', mode === 'rendered');
+  document.getElementById('btnSource').classList.toggle('active', mode === 'source');
+  const doc = document.getElementById('docContent');
+  if (mode === 'source') {
+    doc.innerHTML = '<pre><code>' + escapeHTML(rawMarkdown) + '</code></pre>';
+  } else {
+    doc.innerHTML = mdToHTML(rawMarkdown, currentBasePath);
+    enhanceCopyButtons();
+  }
+}
+
+function setWidth(width) {
+  document.getElementById('btnThin').classList.toggle('active', width === 'thin');
+  document.getElementById('btnNormal').classList.toggle('active', width === 'normal');
+  document.getElementById('btnWide').classList.toggle('active', width === 'wide');
+  document.getElementById('docContent').style.maxWidth =
+    width === 'thin' ? '600px' : width === 'wide' ? '1200px' : '800px';
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    setStatus('Link copied to clipboard', 'success');
+  });
+}
+
+function getDocPath() {
+  const hash = window.location.hash.slice(1);
+  if (!hash) return 'WELCOME';
+  // Handle anchor in hash: doc/path::anchor
+  const parts = hash.split('::');
+  if (parts.length > 1) {
+    pendingAnchor = parts[1];
+    return parts[0];
+  }
+  return hash;
+}
+
+function getBasePath(docPath) {
+  const lastSlash = docPath.lastIndexOf('/');
+  return lastSlash >= 0 ? docPath.substring(0, lastSlash + 1) : '';
+}
+
+function resolvePath(href, basePath) {
+  if (!href || href.startsWith('http://') || href.startsWith('https://') || href.startsWith('/') || href.startsWith('#')) {
+    return href;
+  }
+  // Resolve ../ segments
+  let resolved = basePath + href;
+  let prev;
+  do {
+    prev = resolved;
+    resolved = resolved.replace(/[^/]+\/\.\.\//g, '');
+  } while (resolved !== prev);
+  // Strip any unresolvable leading ../ (already at root)
+  resolved = resolved.replace(/^(\.\.\/)+/g, '');
+  resolved = resolved.replace(/\.\//g, '');
+  return resolved;
+}
+
+async function loadDocument() {
+  const docPath = getDocPath();
+  currentBasePath = getBasePath(docPath);
+  const url = docPath + '.md';
+
+  setStatus('Loading ' + docPath + '...', 'loading');
+
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      if (resp.status === 404) {
+        showError(docPath);
+        setStatus('Document not found: ' + docPath, 'error');
+      } else {
+        showError(docPath, 'Server returned ' + resp.status);
+        setStatus('Failed to load: ' + resp.status, 'error');
+      }
+      return;
+    }
+
+    const md = await resp.text();
+    rawMarkdown = md;
+
+    const doc = document.getElementById('docContent');
+    if (currentView === 'source') {
+      doc.innerHTML = '<pre><code>' + escapeHTML(md) + '</code></pre>';
+    } else {
+      doc.innerHTML = mdToHTML(md, currentBasePath);
+      enhanceCopyButtons();
+    }
+
+    setStatus(docPath, 'success');
+
+    // Scroll to anchor if pending, otherwise scroll to top
+    if (pendingAnchor) {
+      const anchor = pendingAnchor;
+      pendingAnchor = null;
+      requestAnimationFrame(() => scrollToAnchor(anchor));
+    } else {
+      document.querySelector('.content').scrollTop = 0;
+    }
+
+  } catch (err) {
+    showError(docPath, err.message);
+    setStatus('Failed to load document', 'error');
+  }
+}
+
+function showError(docPath, detail) {
+  const el = document.getElementById('docContent');
+  el.innerHTML = '<div class="doc-error">' +
+    '<h2>Document Not Found</h2>' +
+    '<p>Could not load <code>' + escapeHTML(docPath) + '.md</code></p>' +
+    (detail ? '<p>' + escapeHTML(detail) + '</p>' : '') +
+    '</div>';
+}
+
+function scrollToAnchor(anchor) {
+  const el = document.getElementById(anchor);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Listen for hash changes
+window.addEventListener('hashchange', () => {
+  pendingAnchor = null;
+  loadDocument();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ── Click Handler for Internal Links ──
+// ═══════════════════════════════════════════════════════════════
+
+document.getElementById('docContent').addEventListener('click', (e) => {
+  const a = e.target.closest('a');
+  if (!a) return;
+
+  // In-page anchor scroll
+  const anchor = a.getAttribute('data-anchor');
+  if (anchor) {
+    e.preventDefault();
+    scrollToAnchor(anchor);
+    return;
+  }
+
+  // Internal document link (hash-based)
+  const href = a.getAttribute('href');
+  if (href && href.startsWith('#')) {
+    // Check if this is a doc link with anchor: #doc::anchor
+    // hashchange handler will take care of loading
+    return; // let the browser handle the hash change
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ── Callout Type Map & Icons ──
+// ═══════════════════════════════════════════════════════════════
+
+const CALLOUT_TYPE_MAP = {
+  note: 'note',
+  abstract: 'abstract', tldr: 'abstract',
+  summary: 'summary',
+  info: 'info', todo: 'info',
+  tip: 'tip', hint: 'tip', important: 'tip',
+  success: 'success', check: 'success', done: 'success',
+  question: 'question', help: 'question', faq: 'question',
+  warning: 'warning', caution: 'warning', attention: 'warning',
+  failure: 'failure', fail: 'failure', missing: 'failure',
+  danger: 'danger', error: 'danger',
+  bug: 'bug',
+  example: 'example',
+  quote: 'quote', cite: 'quote',
+  statblock: 'statblock',
+};
+
+const CALLOUT_ICONS = {
+  note: '\u270F\uFE0F',       // pencil
+  abstract: '\uD83D\uDCC4',   // page
+  info: '\u2139\uFE0F',       // info
+  tip: '\uD83D\uDD25',        // fire
+  success: '\u2705',           // check
+  question: '\u2753',          // question
+  warning: '\u26A0\uFE0F',    // warning
+  failure: '\u274C',           // cross
+  danger: '\u26A1',            // lightning
+  bug: '\uD83D\uDC1B',        // bug
+  example: '\uD83D\uDCCB',    // clipboard
+  quote: '\u275D',             // quote
+  summary: '\uD83D\uDCD8',    // book
+  statblock: '\uD83C\uDFB2',  // dice
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ── Markdown Parser — Block Level ──
+// ═══════════════════════════════════════════════════════════════
+
+function mdToHTML(md, basePath) {
+  const lines = md.split('\n');
+  let html = '';
+  let i = 0;
+
+  // Block state
+  let inTable = false;
+  let isFirstTableRow = true;
+  let inUl = false;
+  let inOl = false;
+  let inBlockquote = false;
+  let blockquoteLines = [];
+
+  function flushBlockquote() {
+    if (!inBlockquote) return;
+    inBlockquote = false;
+    const bqLines = blockquoteLines;
+    blockquoteLines = [];
+
+    // Check if first line is a callout: [!type] or [!type]- Title
+    if (bqLines.length > 0) {
+      const match = bqLines[0].match(/^\[!(\w+)\](-?)(?:\s+(.*))?$/);
+      if (match) {
+        const rawType = match[1].toLowerCase();
+        const type = CALLOUT_TYPE_MAP[rawType] || 'note';
+        const collapsed = match[2] === '-';
+        const title = match[3] || '';
+        const icon = CALLOUT_ICONS[type] || CALLOUT_ICONS.note;
+        const contentLines = bqLines.slice(1);
+
+        html += '<div class="obsidian-callout callout-' + type + '">';
+        html += '<div class="callout-header' + (collapsed ? ' collapsible' : '') + '"'
+          + (collapsed ? ' onclick="this.nextElementSibling.classList.toggle(\'collapsed\')'
+            + ';this.querySelector(\'.callout-arrow\').textContent='
+            + 'this.nextElementSibling.classList.contains(\'collapsed\')?\'\u25B6\':\'\u25BC\'"' : '')
+          + '>';
+        html += '<span class="callout-icon">' + icon + '</span>';
+        if (title) html += '<span>' + inlineFormat(title, basePath) + '</span>';
+        if (collapsed) {
+          html += '<span class="callout-arrow">\u25B6</span>';
+        }
+        html += '</div>';
+        html += '<div class="callout-content' + (collapsed ? ' collapsed' : '') + '">';
+        html += mdToHTML(contentLines.join('\n'), basePath);
+        html += '</div></div>';
+        return;
+      }
+    }
+
+    // Regular blockquote (no callout)
+    html += '<blockquote>' + bqLines.map(l => '<p>' + inlineFormat(l, basePath) + '</p>').join('') + '</blockquote>';
+  }
+
+  function closeBlocks() {
+    if (inUl) { html += '</ul>'; inUl = false; }
+    if (inOl) { html += '</ol>'; inOl = false; }
+    if (inTable) { html += '</tbody></table>'; inTable = false; }
+    flushBlockquote();
+  }
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // ── Fenced code blocks ──
+    const fenceMatch = line.trimStart().match(/^(`{3,})(.*)/);
+    if (fenceMatch) {
+      closeBlocks();
+      const fenceLen = fenceMatch[1].length;
+      const lang = fenceMatch[2].trim();
+      const codeLines = [];
+      i++;
+      while (i < lines.length) {
+        const closeMatch = lines[i].trimStart().match(/^`{3,}\s*$/);
+        if (closeMatch && closeMatch[0].trim().length >= fenceLen) break;
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++; // skip closing fence
+      const langAttr = lang ? ' class="language-' + escapeHTML(lang) + '"' : '';
+      html += '<pre><code' + langAttr + '>' + escapeHTML(codeLines.join('\n')) + '</code></pre>';
+      continue;
+    }
+
+    // ── Horizontal rules ──
+    if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(line.trim())) {
+      closeBlocks();
+      html += '<hr>';
+      i++;
+      continue;
+    }
+
+    // ── Headings ──
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      closeBlocks();
+      const level = headingMatch[1].length;
+      const text = headingMatch[2];
+      const id = slugify(text);
+      html += '<h' + level + ' id="' + id + '">' + inlineFormat(text, basePath) + '</h' + level + '>';
+      i++;
+      continue;
+    }
+
+    // ── Table separator row — skip ──
+    if (/^\|[\s:_-]+\|/.test(line) && !line.match(/[a-zA-Z0-9]/)) {
+      i++;
+      continue;
+    }
+
+    // ── Table rows ──
+    if (line.startsWith('|') && line.trimEnd().endsWith('|')) {
+      if (inUl) { html += '</ul>'; inUl = false; }
+      if (inOl) { html += '</ol>'; inOl = false; }
+      if (inBlockquote) {
+        flushBlockquote();
+        inBlockquote = false;
+        blockquoteLines = [];
+      }
+      const cells = line.slice(1, -1).split('|').map(c => c.trim());
+      if (!inTable) {
+        html += '<table><tbody>';
+        inTable = true;
+        isFirstTableRow = true;
+      }
+      const tag = isFirstTableRow ? 'th' : 'td';
+      html += '<tr>' + cells.map(c => '<' + tag + '>' + inlineFormat(c, basePath) + '</' + tag + '>').join('') + '</tr>';
+      isFirstTableRow = false;
+      i++;
+      continue;
+    }
+
+    // Close table if we left it
+    if (inTable) {
+      html += '</tbody></table>';
+      inTable = false;
+    }
+
+    // ── Blockquotes ──
+    if (line.startsWith('> ') || line === '>') {
+      if (inUl) { html += '</ul>'; inUl = false; }
+      if (inOl) { html += '</ol>'; inOl = false; }
+      inBlockquote = true;
+      blockquoteLines.push(line.startsWith('> ') ? line.slice(2) : '');
+      i++;
+      continue;
+    }
+    if (inBlockquote) {
+      flushBlockquote();
+    }
+
+    // ── Unordered lists ──
+    if (/^[-*]\s+/.test(line)) {
+      if (inOl) { html += '</ol>'; inOl = false; }
+      if (!inUl) { html += '<ul>'; inUl = true; }
+      html += '<li>' + inlineFormat(line.replace(/^[-*]\s+/, ''), basePath) + '</li>';
+      i++;
+      continue;
+    }
+    if (inUl) { html += '</ul>'; inUl = false; }
+
+    // ── Ordered lists ──
+    if (/^\d+\.\s+/.test(line)) {
+      if (inUl) { html += '</ul>'; inUl = false; }
+      if (!inOl) { html += '<ol>'; inOl = true; }
+      html += '<li>' + inlineFormat(line.replace(/^\d+\.\s+/, ''), basePath) + '</li>';
+      i++;
+      continue;
+    }
+    if (inOl) { html += '</ol>'; inOl = false; }
+
+    // ── Blank line ──
+    if (line.trim() === '') {
+      closeBlocks();
+      isFirstTableRow = true;
+      i++;
+      continue;
+    }
+
+    // ── Paragraph ──
+    html += '<p>' + inlineFormat(line, basePath) + '</p>';
+    i++;
+  }
+
+  closeBlocks();
+  return html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Markdown Parser — Inline Formatting ──
+// ═══════════════════════════════════════════════════════════════
+
+function inlineFormat(text, basePath) {
+  if (!text) return '';
+
+  // HTML escape
+  text = escapeHTML(text);
+
+  // Inline code — extract first to prevent inner formatting
+  // Replace backtick spans with placeholders, then restore after all other formatting
+  const codeSpans = [];
+  text = text.replace(/`([^`]+?)`/g, (_, code) => {
+    codeSpans.push('<code>' + code + '</code>');
+    return '\x00CODE' + (codeSpans.length - 1) + '\x00';
+  });
+
+  // Images: ![alt](src)
+  text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
+    const resolved = resolveSrc(src, basePath);
+    return '<img src="' + resolved + '" alt="' + alt + '">';
+  });
+
+  // Standard links: [text](href)
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, linkText, href) => {
+    return buildLink(linkText, href, basePath);
+  });
+
+  // Wikilinks: [[target|display]] or [[target]]
+  text = text.replace(/\[\[([^\]]+)\]\]/g, (_, content) => {
+    const pipeIdx = content.indexOf('|');
+    let target, display;
+    if (pipeIdx >= 0) {
+      target = content.substring(0, pipeIdx).trim();
+      display = content.substring(pipeIdx + 1).trim();
+    } else {
+      target = content.trim();
+      // Display is just the filename (last segment)
+      const lastSlash = target.lastIndexOf('/');
+      display = lastSlash >= 0 ? target.substring(lastSlash + 1) : target;
+    }
+    // Strip anchor from target for display purposes
+    const anchorIdx = target.indexOf('#');
+    let anchor = '';
+    if (anchorIdx >= 0) {
+      anchor = slugify(target.substring(anchorIdx + 1));
+      target = target.substring(0, anchorIdx);
+    }
+    // Resolve relative to current base path
+    const resolved = target ? resolvePath(target, basePath) : '';
+    const hashPath = resolved ? '#' + resolved + (anchor ? '::' + anchor : '') : '';
+    if (!hashPath && anchor) {
+      // Pure in-page anchor
+      return '<a href="#" data-anchor="' + anchor + '">' + display + '</a>';
+    }
+    return '<a href="' + hashPath + '">' + display + '</a>';
+  });
+
+  // Bold + italic
+  text = text.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  // Bold
+  text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  // Italic
+  text = text.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+  // Strikethrough
+  text = text.replace(/~~(.*?)~~/g, '<del>$1</del>');
+
+  // Restore code spans
+  text = text.replace(/\x00CODE(\d+)\x00/g, (_, idx) => codeSpans[parseInt(idx)]);
+
+  return text;
+}
+
+function buildLink(linkText, href, basePath) {
+  // External links
+  if (href.startsWith('http://') || href.startsWith('https://')) {
+    return '<a href="' + href + '" target="_blank" rel="noopener">' + linkText + '</a>';
+  }
+
+  // In-page anchor
+  if (href.startsWith('#')) {
+    const anchor = slugify(href.slice(1));
+    return '<a href="#" data-anchor="' + anchor + '">' + linkText + '</a>';
+  }
+
+  // Internal .md link
+  let anchor = '';
+  let path = href;
+
+  // Extract anchor from href (e.g., doc.md#section)
+  const hashIdx = path.indexOf('#');
+  if (hashIdx >= 0) {
+    anchor = slugify(path.substring(hashIdx + 1));
+    path = path.substring(0, hashIdx);
+  }
+
+  // Strip .md extension
+  if (path.endsWith('.md')) {
+    path = path.slice(0, -3);
+  }
+
+  // Resolve relative to base path
+  const resolved = resolvePath(path, basePath);
+  const hashHref = '#' + resolved + (anchor ? '::' + anchor : '');
+  return '<a href="' + hashHref + '">' + linkText + '</a>';
+}
+
+function resolveSrc(src, basePath) {
+  if (!src || src.startsWith('http://') || src.startsWith('https://') || src.startsWith('/') || src.startsWith('data:')) {
+    return src;
+  }
+  return resolvePath(src, basePath);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Utilities ──
+// ═══════════════════════════════════════════════════════════════
+
+function escapeHTML(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function slugify(text) {
+  return text
+    .toLowerCase()
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Copy Buttons (post-render enhancement) ──
+// ═══════════════════════════════════════════════════════════════
+
+const COPY_ICON = '<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+const CHECK_ICON = '<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+function makeCopyBtn(cls, getText) {
+  const btn = document.createElement('button');
+  btn.className = cls;
+  btn.innerHTML = COPY_ICON;
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const text = getText();
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.innerHTML = CHECK_ICON;
+      setTimeout(() => { btn.innerHTML = COPY_ICON; }, 1500);
+    });
+  });
+  return btn;
+}
+
+function enhanceCopyButtons() {
+  const doc = document.getElementById('docContent');
+
+  // Code blocks
+  doc.querySelectorAll('pre').forEach(pre => {
+    if (pre.querySelector('.copy-btn')) return;
+    const code = pre.querySelector('code');
+    if (!code) return;
+    pre.appendChild(makeCopyBtn('copy-btn', () => code.innerText));
+  });
+
+  // Images
+  doc.querySelectorAll('img').forEach(img => {
+    if (img.parentElement.classList.contains('image-container')) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'image-container';
+    img.parentNode.insertBefore(wrapper, img);
+    wrapper.appendChild(img);
+    wrapper.appendChild(makeCopyBtn('copy-img-btn', () => img.src));
+  });
+
+  // Inline code
+  doc.querySelectorAll('p code, li code, td code, th code, blockquote code, .callout-content code').forEach(code => {
+    if (code.closest('pre')) return;
+    if (code.parentElement.classList.contains('inline-code-wrap')) return;
+    const wrapper = document.createElement('span');
+    wrapper.className = 'inline-code-wrap';
+    code.parentNode.insertBefore(wrapper, code);
+    wrapper.appendChild(code);
+    wrapper.appendChild(makeCopyBtn('copy-inline-btn', () => code.innerText));
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Style Override (STYLE.css) ──
+// ═══════════════════════════════════════════════════════════════
+
+async function loadStyle() {
+  const param = new URLSearchParams(window.location.search).get('style');
+  const file = param ? param + '.css' : 'STYLE.css';
+  try {
+    const resp = await fetch(file);
+    if (resp.ok) {
+      const style = document.createElement('style');
+      style.textContent = await resp.text();
+      document.head.appendChild(style);
+    }
+  } catch (e) {}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Chrome Loading (HEADER.md / FOOTER.md) ──
+// ═══════════════════════════════════════════════════════════════
+
+async function loadChrome() {
+  const [headerResult, footerResult] = await Promise.allSettled([
+    fetch('HEADER.md').then(r => r.ok ? r.text() : null),
+    fetch('FOOTER.md').then(r => r.ok ? r.text() : null),
+  ]);
+
+  if (headerResult.status === 'fulfilled' && headerResult.value) {
+    document.getElementById('headerContent').innerHTML = mdToHTML(headerResult.value, '');
+    document.getElementById('headerEl').style.display = 'block';
+  }
+
+  if (footerResult.status === 'fulfilled' && footerResult.value) {
+    document.getElementById('footerContent').innerHTML = mdToHTML(footerResult.value, '');
+    document.getElementById('footerEl').style.display = 'block';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Init ──
+// ═══════════════════════════════════════════════════════════════
+
+loadStyle();
+if (new URLSearchParams(window.location.search).get('chrome') !== 'false') {
+  loadChrome();
+}
+loadDocument();
+</script>
+</body>
+</html>
