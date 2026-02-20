@@ -2,7 +2,7 @@
 
 ## Overview
 
-D&D encounter manager and initiative tracker for DMs running combat. Single self-contained HTML file at `encounter/index.html`. No server, no accounts, no dependencies — localStorage persistence only.
+D&D encounter manager and initiative tracker for DMs running combat. Single self-contained HTML file at `encounter/index.html`. No server, no accounts, no dependencies — IndexedDB persistence (with localStorage fallback).
 
 Built for heroic/homebrew D&D — CR100 monsters, level 60 players, non-standard rules are expected use cases.
 
@@ -100,48 +100,57 @@ New field on monster template:
 - No-cache meta tags added (`Cache-Control`, `Pragma`, `Expires`) so browsers always fetch latest version
 - Init value 0 fix: initiative of 0 now displays correctly (not as empty). Null/undefined init is distinct from 0 — empty means "not set", 0 means "rolled zero". All sorting uses `?? -Infinity` so null-init combatants sort to bottom. `beginCombat()` validation checks for null/undefined, not falsy.
 
-## Phase 4 — Organization, Multi-Combat & Import/Export
+## Phase 4 — Multi-Combat, SquishText Export/Import & Polish (done)
 
 ### Multi-Combat Support
-- `state.combat` (single object) becomes `state.combats` (array)
-- `pf_enc_combat` localStorage key holds the array
-- Combat tab landing page: list of active combats with name, round, party, combatant count
-- Click to resume any combat
-- "No active combats" empty state with link to Encounters
-- Use case: split-party sessions, multiple groups with sessions between them
-- Estimated ~30-50 lines of structural change + combat list UI
-- All combat logic stays the same — operates on whichever combat is "selected"
+- `state.combat` (single object) → `state.combats` (array) + `activeCombatId` (transient)
+- `pf_enc_combats` IndexedDB key (auto-migrates from old `pf_enc_combat` single-object key)
+- `getActiveCombat()` helper replaces all direct `state.combat` references
+- Combat list view: cards for each combat showing name, round, turn, alive count
+- Click card to resume, "Back to List" button in combat bar when multiple combats exist
+- Each combat gets `id` (UUID) and `name` (auto-generated from encounter + party names)
+- `endCombat()` removes from array instead of setting null
 
-### Monster Groups
-- Groups CRUD: `{ id, name, templateIds[] }`
-- Group filtering in template list (dropdown or chips)
-- Assign templates to groups from template form
-- `pf_enc_groups` localStorage key
-
-### Campaign/Encounter Organization
-- Encounter filtering by campaign field
-- Campaign dropdown or filter chips in encounter list
-
-### Import/Export
-- Importers are pure functions: `importCritterDB(json) → template[]`, `import5etools(json) → template[]`
-- Each maps external format to canonical template schema
-- Import sources:
-  - CritterDB JSON
-  - Bestiary Builder JSON
-  - 5etools JSON
+### SquishText Import/Export
+- File-based backup/restore (no clipboard) — Export button downloads .txt, Import button opens file upload modal
 - Export format: SquishText-encoded (deflate-raw → base64 → CRC32 → header)
-  - Exported blob is a valid SquishText payload
-  - Users can paste into SquishText tool to inspect raw JSON
 - Import accepts both SquishText blobs and raw JSON (auto-detect)
-- Full backup export/import (all templates, encounters, parties, groups)
-- Compression functions (`compress`, `decompress`, `crc32`) embedded directly — same single-file approach
+- Compression functions (`compress`, `decompress`, `crc32`) embedded directly
+- Export payload: `{ version, exported, templates, encounters, parties, players, combats }`
 
-### Storage
-- Storage usage indicator in footer or settings area
-- localStorage stays plain JSON (no compression for local persistence)
+### Searchable Monster Picker
+- Replaced `<select>` in encounter form with text input + filtered dropdown (`.search-select`)
+- `filterMonsterPicker()` filters by name (case-insensitive), `selectMonster()` sets `data-template-id`
+- Dropdown closes on click outside, shows CR tag per monster
 
-### Portal Page
-- Update root `tools/index.html` to include Encounter Manager in the tool list
+### Storage Indicator
+- Footer shows "Storage: X.X MB used" via `navigator.storage.estimate()`
+- Updated after load and debounced after saves (2s timeout)
+
+## Future Phases
+
+### Phase 5 — CritterDB Importer
+- Discovery: investigate CritterDB JSON export format
+- Data mapping: map CritterDB fields to canonical template schema
+- Pure function: `importCritterDB(json) → template[]`
+- UI: file upload or paste, preview mapped templates before import
+
+### Phase 6 — 5etools Importer
+- Discovery: investigate 5etools bestiary JSON format
+- Data mapping: map 5etools fields to canonical template schema
+- Pure function: `import5etools(json) → template[]`
+
+### Phase 7 — Bestiary Builder Importer
+- Discovery: investigate Bestiary Builder JSON export format
+- Data mapping: map fields to canonical template schema
+- Pure function: `importBestiaryBuilder(json) → template[]`
+
+### Backlog (unscheduled)
+- Surprise round handling
+- Dynamic notes/riders with round expiry
+- Template override highlighting in combat
+- Damage log (collapsible panel)
+- Campaign/encounter filtering (dropdown or chips in encounter list)
 
 ## Key Architecture Decisions
 
@@ -158,4 +167,4 @@ Never interpolate user strings into inline `onclick`/`onchange` handlers. Use UU
 Roll logs are stored on combatant instances and saved to localStorage. They survive page refreshes, panel toggles, and re-renders. Cleared only when that combatant's turn starts again. This is intentional — DMs need to reference past rolls when players contest results or use reactions retroactively (Silvery Barbs, Shield, etc.).
 
 ### Combat State Machine
-`round: 0` = initiative setup phase. `round: 1+` = active combat. Combat view dispatches to different renderers based on this. The pendingCombatEncounterId handles the party selection step before combat state exists.
+`state.combats` is an array of combat objects. `activeCombatId` (transient, not persisted) selects which combat is displayed. `getActiveCombat()` returns the selected combat or null. `round: 0` = initiative setup phase. `round: 1+` = active combat. Combat view dispatches: empty → combat list → party select → init setup → active combat.

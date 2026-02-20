@@ -5,32 +5,36 @@ A single self-contained HTML file (`index.html`) for D&D encounter management an
 
 ## Code Map
 
-The file is ~2876 lines. Rough section layout:
+The file is ~3200+ lines. Rough section layout:
 
-| Section | Lines (approx) | Contents |
-|---------|----------------|----------|
-| CSS | 20–670 | Full theme, button classes (`btn-accent`/`btn-success`/`btn-warning`/`btn-danger`/`btn-remove`), condition/concentration chips, LA/LR badges, turn-notify pulse, responsive breakpoints |
-| HTML | 670–710 | Header, toolbar nav tabs, status bar, 4 view containers, footer |
-| Constants & State | 710–830 | `ABILITIES`, `CONDITIONS`, `SKILLS`, `SIZES`, `state`, `load()`/`save()`, `uuid()`, `esc()`, `modStr()` |
-| Dice Engine | 845–900 | `rollDice(notation, opts)`, `renderDiceText()`, `rollInlineDice()` |
-| Combat Helpers | 905–925 | `saveCombat()`, `getTemplate()`, `resolveField()` |
-| View Management | 925–975 | `switchView()`, `handleNew()`, `render()` dispatcher |
-| Monster Templates | 975–1335 | List, form, CRUD, passive perception, crits-on field |
-| Encounters | 1335–1525 | List, form, CRUD, delete (clears combat if linked) |
-| Parties | 1525–1690 | List, form, CRUD, player roster chips |
-| Combat Entry | 1690–1825 | `startCombat()`, party select cards, `launchCombat()` |
-| Initiative Setup | 1825–1910 | `renderInitiativeSetup()`, `beginCombat()`, `addAdhocCombatant()` |
-| Active Combat | 1910–2285 | `renderActiveCombat()`, `renderCombatantDetail()` (with conditions, concentration, legendary sections) |
-| Condition Tracking | 2285–2355 | `updateConditionFields()`, `addCondition()`, `removeCondition()` |
-| Concentration | 2355–2375 | `setConcentration()`, `dropConcentration()` |
-| HP Tracking | 2375–2455 | `applyDamage()` (with concentration DC warning), `applyHeal()`, `applyTempHp()` |
-| Feature Use Tracking | 2455–2510 | `useFeature()`, `restoreFeature()`, `rollRecharge()` |
-| Legendary Actions | 2510–2570 | `useLegendaryAction()`, `useLegendaryResistance()`, `restoreLegendaryResistance()`, `restoreLegendaryAction()` |
-| Ability Check/Save | 2570–2600 | `rollAbilityCheck()`, `rollSavingThrow()` |
-| Attack Rolling | 2600–2680 | `rollAttack()`, `rollDamageForAttack()`, `renderRollLog()` |
-| Turn Management | 2680–2785 | `applyTurnStartEffects()`, `nextTurn()`, `prevTurn()`, `toggleReaction()` |
-| Mid-Combat Editing | 2785–2870 | `editInit()`, `killCombatant()`, `reviveCombatant()`, `removeCombatant()`, `endCombat()` |
-| Init | 2870–2876 | `load(); render();` |
+| Section | Contents |
+|---------|----------|
+| CSS | Full theme, button classes, searchable select, modal overlay, combat list cards, condition/concentration chips, LA/LR badges, turn-notify pulse, responsive breakpoints |
+| HTML | Header, toolbar (nav tabs + Import/Export buttons), status bar, 4 view containers, footer with storage indicator |
+| Constants & State | `ABILITIES`, `CONDITIONS`, `SKILLS`, `SIZES`, `STORAGE_KEYS`, `state`, `activeCombatId`, `getActiveCombat()`, `load()`/`save()`, `uuid()`, `esc()`, `modStr()` |
+| Dice Engine | `rollDice(notation, opts)`, `renderDiceText()`, `rollInlineDice()` |
+| Compression | CRC32, `compress()`, `decompress()` — SquishText-compatible, embedded for import/export |
+| Combat Helpers | `saveCombat()`, `getTemplate()`, `resolveField()` |
+| View Management | `switchView()`, `handleNew()`, `render()` dispatcher |
+| Monster Templates | List, form, CRUD, passive perception, crits-on field |
+| Encounters | List, form, CRUD, searchable monster picker, delete (clears linked combats) |
+| Parties | List, form, CRUD, player roster chips |
+| Combat Entry | `startCombat()`, party select cards, `launchCombat()` |
+| Combat List | `renderCombatList()`, `resumeCombat()` — multi-combat selector |
+| Initiative Setup | `renderInitiativeSetup()`, `beginCombat()`, `addAdhocCombatant()` |
+| Active Combat | `renderActiveCombat()`, `renderCombatantDetail()` (with conditions, concentration, legendary sections) |
+| Condition Tracking | `updateConditionFields()`, `addCondition()`, `removeCondition()` |
+| Concentration | `setConcentration()`, `dropConcentration()` |
+| HP Tracking | `applyDamage()` (with concentration DC warning), `applyHeal()`, `applyTempHp()` |
+| Feature Use Tracking | `useFeature()`, `restoreFeature()`, `rollRecharge()` |
+| Legendary Actions | `useLegendaryAction()`, `useLegendaryResistance()`, `restoreLegendaryResistance()`, `restoreLegendaryAction()` |
+| Ability Check/Save | `rollAbilityCheck()`, `rollSavingThrow()` |
+| Attack Rolling | `rollAttack()`, `rollDamageForAttack()`, `renderRollLog()` |
+| Turn Management | `applyTurnStartEffects()`, `nextTurn()`, `prevTurn()`, `toggleReaction()` |
+| Mid-Combat Editing | `editInit()`, `killCombatant()`, `reviveCombatant()`, `removeCombatant()`, `endCombat()` |
+| Import/Export | `exportData()`, `showImportDialog()`, `doImport()` |
+| Storage Indicator | `updateStorageInfo()` |
+| Init | `load().then(() => { render(); updateStorageInfo(); })` |
 
 *Line numbers are approximate and shift as code is added.*
 
@@ -68,8 +72,11 @@ All forms (template, party, encounter) follow Save/Close/Cancel with dirty track
 
 ### State Management
 ```javascript
-let state = { templates: [], groups: [], encounters: [], parties: [], combat: null, players: [] };
+let state = { templates: [], groups: [], encounters: [], parties: [], combats: [], players: [] };
+let activeCombatId = null; // transient, not persisted — ID of the combat being viewed
 ```
+- `state.combats` is an array of combat objects (supports multiple simultaneous combats)
+- `getActiveCombat()` returns the combat matching `activeCombatId`, or null
 - `state.players` is a shared roster — names reusable across any party via toggle chips
 - `state.parties` own their own `players[]` arrays (copies, not references)
 - `state.encounters` contain only monsters (no players) — party is selected at combat start
@@ -77,7 +84,7 @@ let state = { templates: [], groups: [], encounters: [], parties: [], combat: nu
 
 ### Storage (IndexedDB)
 - **Database**: `pf_encounter`, version 1, single object store `state`
-- **Keys** (same `pf_enc_` namespace): `pf_enc_templates`, `pf_enc_groups`, `pf_enc_encounters`, `pf_enc_parties`, `pf_enc_combat`, `pf_enc_players`
+- **Keys** (same `pf_enc_` namespace): `pf_enc_templates`, `pf_enc_groups`, `pf_enc_encounters`, `pf_enc_parties`, `pf_enc_combats`, `pf_enc_players`
 - **`load()`** is async — reads from IndexedDB, auto-migrates from localStorage on first run (copies data, then clears localStorage)
 - **`save(key)`** is fire-and-forget — kicks off IndexedDB write without awaiting, callers don't need to change
 - **Fallback**: if IndexedDB is unavailable (`file://` + Safari edge cases), falls back to localStorage silently via `_useLocalStorage` flag
@@ -92,7 +99,7 @@ let state = { templates: [], groups: [], encounters: [], parties: [], combat: nu
 
 **Party** — `{ id, name, players: ["name1", "name2"] }`. Players are strings, not objects.
 
-**Combat State** — `{ encounterId, partyId, round, turnIndex, combatants[], damageLog[], active }`. `round: 0` = initiative setup phase. `round: 1+` = active combat.
+**Combat State** — `{ id, name, encounterId, partyId, round, turnIndex, combatants[], damageLog[], active }`. `round: 0` = initiative setup phase. `round: 1+` = active combat. Multiple combats can exist simultaneously in `state.combats[]`.
 
 **Combatant Instance** — sparse delta pattern. Instances only store overrides from template defaults. Value resolution: `instance.overrides?.[field] ?? template[field]`.
 
@@ -112,7 +119,7 @@ Fields added on mutation only: `tempHp`, `overrides`, `reactionUsed`, `notes`, `
 2. App validates monsters exist and at least one party is saved
 3. `pendingCombatEncounterId` is set (transient variable, not persisted) — bridges encounter list to combat view
 4. Combat view shows party selection cards
-5. DM picks a party → `launchCombat(partyId)` initializes `state.combat`, clears `pendingCombatEncounterId`
+5. DM picks a party → `launchCombat(partyId)` creates a new combat in `state.combats[]`, sets `activeCombatId`, clears `pendingCombatEncounterId`
 6. Initiative setup: monsters pre-rolled (with roll breakdown shown), players blank
 7. DM enters player inits, clicks "Begin Combat" → sorts descending, round 1 starts
 8. Active combat: expandable combatant rows with HP, attacks, roll log, conditions, concentration
@@ -121,10 +128,11 @@ Fields added on mutation only: `tempHp`, `overrides`, `reactionUsed`, `notes`, `
 
 | State | Condition | Renders |
 |-------|-----------|---------|
-| Empty | No `state.combat`, no `pendingCombatEncounterId` | "Go to Encounters..." message |
+| Empty | No combats, no `pendingCombatEncounterId` | "Go to Encounters..." message |
 | Party Select | `pendingCombatEncounterId` set | Party selection cards |
-| Initiative Setup | `state.combat.round === 0` | Editable init list + "Begin Combat" |
-| Active Combat | `state.combat.round >= 1` | Turn tracker with expandable rows |
+| Combat List | `state.combats.length > 0`, no `activeCombatId` | Cards for each combat (click to resume) |
+| Initiative Setup | Active combat, `round === 0` | Editable init list + "Begin Combat" |
+| Active Combat | Active combat, `round >= 1` | Turn tracker with expandable rows |
 
 ## Key Functions
 
@@ -222,8 +230,10 @@ User input flows through `this.value` in onchange handlers (reads from DOM eleme
 **Exception for inline dice**: `renderDiceText()` interpolates dice notation strings (e.g., `'2d6+3'`) into onclick handlers. This is safe because the notation comes from `esc()`-escaped template data and the regex only matches `\d+d\d+([+-]\d+)?` patterns.
 
 ## Encounter/Combat Lifecycle
-- Deleting an encounter that has an active combat clears the combat state.
-- Currently single-combat only (`state.combat` is one object or null). Multi-combat support (array of combats with selector UI) planned for Phase 4.
+- Deleting an encounter removes all combats linked to that encounter from `state.combats`.
+- Multi-combat supported: `state.combats` is an array, `activeCombatId` selects which one is displayed.
+- Combat list view shows all active combats when none is selected.
+- "Back to List" button appears in the combat bar when multiple combats exist.
 
 ## Testing
 - No build step, no test suite. Open `index.html` in a browser.
@@ -238,7 +248,8 @@ User input flows through `this.value` in onchange handlers (reads from DOM eleme
 - **Phase 2** (done): Combat core — initiative rolling with roll text display, turn management, HP tracking (single input + Dmg/Heal/THP), attack rolling (normal/adv/dis), crit damage rolling, crit/fumble highlighting (nat 20/nat 1), stacking roll log (persisted, clears on turn start), expandable combatant rows with column headers, ad-hoc combatants (sorted on add), reaction toggle, player AC, multiattack styling, init drop ends turn
 - **Phase 3** (done): Crit range on template (customizable crit threshold, labeled "Crits On"), full feature/trait text display in combat with inline clickable dice rolling (roll log labels include source feature/LA name), feature use tracking with DM-initiated recharge rolls, legendary actions (budget tracking, use/restore buttons, auto-recharge on turn) and resistances (use/restore counter), ability check/save rolling from detail panel, condition/effect tracking (rounds/save-based/indefinite, all combatant types, custom effects, condition chips on rows, auto-decrement), concentration tracking with damage DC warnings, turn-start notification badges on combatant rows
 - **Phase 3.5** (done): IndexedDB migration (auto-migrates from localStorage, localStorage fallback), no-cache meta tags, init 0 display fix
-- **Phase 4** (next): Monster groups, multi-combat support (combat array + selector UI for split sessions), import/export (CritterDB, 5etools, SquishText-encoded), storage indicator, update root index.html. See `PLAN.md` for full details.
+- **Phase 4** (done): Multi-combat support (combats array + combat list selector UI), SquishText import/export (file-based backup/restore with embedded compression), searchable monster picker in encounter form, storage indicator in footer
+- **Phase 5+** (future): External importers — CritterDB, 5etools, Bestiary Builder (each in own phase for discovery/mapping). See `PLAN.md` for backlog.
 
 ## Development Notes
 
@@ -250,5 +261,8 @@ User input flows through `this.value` in onchange handlers (reads from DOM eleme
 - `applyTurnStartEffects()` is the single consolidated turn-start hook — all turn-start additions go here, not in `nextTurn()` or `editInit()` directly
 - Recharge rolls are DM-initiated (notification + button), NOT auto-rolled on turn start
 - **Button classes**: Use `.btn-accent`, `.btn-success`, `.btn-warning`, `.btn-danger` for colored buttons — never inline `style="color:var(--accent)"` as it breaks hover contrast. Each class has proper `:hover` with `color: white !important`. `.btn-remove` is the global class for × delete/remove buttons (red border, red text, red bg on hover).
+- **Multi-combat**: All combat functions use `getActiveCombat()` instead of `state.combat`. `activeCombatId` is transient (not persisted). `saveCombat()` saves the entire `state.combats` array. Migration from old single-combat format (`pf_enc_combat`) is automatic in `load()`.
+- **Searchable monster picker**: Encounter form uses `filterMonsterPicker()` + `selectMonster()` with a `.search-select` dropdown. Monster ID stored in `data-template-id` on the input element.
+- **Import/Export**: Uses embedded SquishText-compatible compression (deflate-raw + CRC32). Export = file download. Import = file upload modal. Accepts both SquishText blobs and raw JSON.
 - No backwards compatibility concerns yet — tool is pre-release
 - Context: heroic/homebrew D&D — CR100 monsters, level 60 players, non-standard rules are expected

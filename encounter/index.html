@@ -388,6 +388,39 @@
     text-align: center;
   }
 
+  /* ── Searchable Select ── */
+  .search-select { position: relative; flex: 1; }
+  .search-dropdown {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 30;
+    max-height: 200px; overflow-y: auto;
+    background: var(--surface); border: 1px solid var(--border); border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    display: none;
+  }
+  .search-dropdown.open { display: block; }
+  .search-dropdown-item {
+    padding: 0.4rem 0.6rem; font-size: 0.8rem; cursor: pointer;
+    color: var(--text); border-bottom: 1px solid var(--border);
+  }
+  .search-dropdown-item:last-child { border-bottom: none; }
+  .search-dropdown-item:hover { background: var(--accent); color: white; }
+  .search-dropdown-item .cr-tag {
+    font-size: 0.65rem; color: var(--text-dim); margin-left: 0.5rem;
+  }
+  .search-dropdown-item:hover .cr-tag { color: rgba(255,255,255,0.7); }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,0.6); display: flex;
+    align-items: center; justify-content: center;
+  }
+  .modal-content {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.5rem;
+    max-width: 400px; width: 90%;
+  }
+
   /* ── Footer ── */
   .footer {
     padding: 0.4rem 1.5rem;
@@ -399,6 +432,15 @@
     justify-content: space-between;
   }
   .footer a { color: var(--accent); text-decoration: none; }
+
+  /* ── Combat List ── */
+  .combat-list-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 0.75rem; margin-bottom: 0.5rem; cursor: pointer; transition: border-color 0.15s;
+  }
+  .combat-list-card:hover { border-color: var(--accent); }
+  .combat-list-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.3rem; }
+  .combat-list-info { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
 
   /* ── Combat ── */
   .combat-bar {
@@ -698,6 +740,9 @@
   <button class="btn-toggle" id="navEncounters" onclick="switchView('encounters')">Encounters</button>
   <button class="btn-toggle" id="navCombat" onclick="switchView('combat')">Combat</button>
   <div class="spacer"></div>
+  <button class="btn-sm" onclick="showImportDialog()" title="Import backup">Import</button>
+  <button class="btn-sm" onclick="exportData()" title="Export backup">Export</button>
+  <div class="sep"></div>
   <button class="btn-action" id="btnNew" onclick="handleNew()">+ New Monster</button>
 </div>
 
@@ -712,7 +757,7 @@
 
 <div class="footer">
   <span><a href="https://promptferret.github.io">PromptFerret</a> &middot; <a href="https://github.com/PromptFerret/tools/blob/main/LICENSE" target="_blank">MIT License</a> &middot; Vibe coded with <a href="https://docs.anthropic.com/en/docs/claude-code" target="_blank">Claude Code</a></span>
-  <span><a href="../">All Tools</a> &middot; Data stored in your browser</span>
+  <span><a href="../">All Tools</a> &middot; <span id="storageInfo">Data stored in your browser</span></span>
 </div>
 
 <script>
@@ -735,7 +780,7 @@ const STORAGE_KEYS = {
   groups: 'pf_enc_groups',
   encounters: 'pf_enc_encounters',
   parties: 'pf_enc_parties',
-  combat: 'pf_enc_combat',
+  combats: 'pf_enc_combats',
   players: 'pf_enc_players'
 };
 
@@ -748,7 +793,7 @@ let state = {
   groups: [],
   encounters: [],
   parties: [],
-  combat: null,
+  combats: [],
   players: []
 };
 
@@ -757,6 +802,12 @@ let formMode = null;   // null = list, 'template' = editing template, 'encounter
 let formData = null;   // working copy of the item being edited
 let savedFormSnapshot = null; // snapshot of formData at last save, for dirty checking
 let searchQuery = '';
+let activeCombatId = null; // transient — ID of the combat currently being viewed
+
+function getActiveCombat() {
+  if (!activeCombatId) return null;
+  return state.combats.find(c => c.id === activeCombatId) || null;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // ── Utilities ──
@@ -870,20 +921,41 @@ async function load() {
       const val = await idbGet(db, skey);
       if (val !== undefined) { state[key] = val; hasIdbData = true; }
     }
+    // Migrate old single combat → combats array (Phase 3.5 → Phase 4)
+    const oldCombat = await idbGet(db, 'pf_enc_combat');
+    if (oldCombat !== undefined) {
+      state.combats = oldCombat ? [Object.assign({ id: oldCombat.id || uuid() }, oldCombat)] : [];
+      try {
+        const tx = _db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).put(state.combats, 'pf_enc_combats');
+        tx.objectStore(DB_STORE).delete('pf_enc_combat');
+      } catch (e) { /* best effort */ }
+      console.log('Migrated single combat to combats array');
+    }
     // Auto-migrate from localStorage if IndexedDB was empty
-    if (!hasIdbData) {
+    if (!hasIdbData && oldCombat === undefined) {
       let migrated = false;
+      // Check both old and new key names
       for (const [key, skey] of Object.entries(STORAGE_KEYS)) {
         try {
           const raw = localStorage.getItem(skey);
           if (raw) { state[key] = JSON.parse(raw); migrated = true; }
         } catch (e) { /* ignore parse errors */ }
       }
+      // Also check old single-combat localStorage key
+      try {
+        const oldRaw = localStorage.getItem('pf_enc_combat');
+        if (oldRaw) {
+          const oldC = JSON.parse(oldRaw);
+          state.combats = oldC ? [Object.assign({ id: oldC.id || uuid() }, oldC)] : [];
+          migrated = true;
+        }
+      } catch (e) { /* ignore */ }
       if (migrated) {
         for (const [k, skey] of Object.entries(STORAGE_KEYS)) {
           try { _db.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE).put(state[k], skey); } catch (e) { /* best effort */ }
         }
-        for (const skey of Object.values(STORAGE_KEYS)) {
+        for (const skey of [...Object.values(STORAGE_KEYS), 'pf_enc_combat']) {
           try { localStorage.removeItem(skey); } catch (e) { /* best effort */ }
         }
         console.log('Migrated data from localStorage to IndexedDB');
@@ -896,6 +968,15 @@ async function load() {
       for (const [key, skey] of Object.entries(STORAGE_KEYS)) {
         const raw = localStorage.getItem(skey);
         if (raw) state[key] = JSON.parse(raw);
+      }
+      // Also check old single-combat key
+      if (!state.combats.length) {
+        const oldRaw = localStorage.getItem('pf_enc_combat');
+        if (oldRaw) {
+          const oldC = JSON.parse(oldRaw);
+          state.combats = oldC ? [Object.assign({ id: oldC.id || uuid() }, oldC)] : [];
+          localStorage.removeItem('pf_enc_combat');
+        }
       }
     } catch (e2) {
       console.error('Failed to load state:', e2);
@@ -926,6 +1007,8 @@ function save(key) {
       idbPut(k, state[k]);
     }
   }
+  clearTimeout(save._storageTimer);
+  save._storageTimer = setTimeout(updateStorageInfo, 2000);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -972,7 +1055,7 @@ function renderDiceText(text, combatantIdx, sourceType, sourceIdx) {
 }
 
 function rollInlineDice(combatantIdx, notation, sourceType, sourceIdx) {
-  const c = state.combat.combatants[combatantIdx];
+  const c = getActiveCombat().combatants[combatantIdx];
   if (!c.rollLog) c.rollLog = [];
   const result = rollDice(notation);
   var label = notation;
@@ -989,10 +1072,62 @@ function rollInlineDice(combatantIdx, notation, sourceType, sourceIdx) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// ── Compression (SquishText-compatible) ──
+// ═══════════════════════════════════════════════════════════════
+
+const crcTable = new Uint32Array(256);
+for (let i = 0; i < 256; i++) {
+  let c = i;
+  for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+  crcTable[i] = c;
+}
+function crc32(str) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < str.length; i++) crc = crcTable[(crc ^ str.charCodeAt(i)) & 0xFF] ^ (crc >>> 8);
+  return ((crc ^ 0xFFFFFFFF) >>> 0).toString(16).padStart(8, '0');
+}
+
+async function compress(text) {
+  const encoder = new TextEncoder();
+  const stream = new Blob([encoder.encode(text)])
+    .stream()
+    .pipeThrough(new CompressionStream('deflate-raw'));
+  const blob = await new Response(stream).blob();
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  const b64 = btoa(binary);
+  return b64 + '.' + crc32(b64);
+}
+
+async function decompress(base64) {
+  base64 = base64.replace(/^\[SquishText\][^\n]*\n?/, '');
+  base64 = base64.trim().replace(/[\r\n\s]/g, '');
+  base64 = base64.replace(/-/g, '+').replace(/_/g, '/');
+  const dotIdx = base64.lastIndexOf('.');
+  if (dotIdx > 0 && base64.length - dotIdx - 1 === 8) {
+    const data = base64.slice(0, dotIdx);
+    const checksum = base64.slice(dotIdx + 1).toLowerCase();
+    if (crc32(data) !== checksum) throw new Error('Checksum mismatch — data may be corrupted.');
+    base64 = data;
+  }
+  while (base64.length % 4 !== 0) base64 += '=';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const stream = new Blob([bytes])
+    .stream()
+    .pipeThrough(new DecompressionStream('deflate-raw'));
+  const blob = await new Response(stream).blob();
+  return await blob.text();
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ── Combat Helpers ──
 // ═══════════════════════════════════════════════════════════════
 
-function saveCombat() { save('combat'); }
+function saveCombat() { save('combats'); }
 
 function getTemplate(c) {
   return c.type === 'monster' ? state.templates.find(t => t.id === c.templateId) : null;
@@ -1503,12 +1638,11 @@ function renderEncounterForm() {
   if (state.templates.length === 0) {
     html += '<p style="font-size:0.8rem;color:var(--text-dim)">No monsters yet. Create some in the Monsters tab first.</p>';
   } else {
-    html += '<div style="display:flex;gap:0.4rem;margin-bottom:0.5rem">';
-    html += '<select id="monsterPicker" style="flex:1;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.8rem">';
-    state.templates.forEach(t => {
-      html += '<option value="' + t.id + '">' + esc(t.name) + ' (CR ' + esc(t.cr || '?') + ')</option>';
-    });
-    html += '</select>';
+    html += '<div style="display:flex;gap:0.4rem;margin-bottom:0.5rem;align-items:flex-start">';
+    html += '<div class="search-select">';
+    html += '<input type="text" id="monsterPicker" placeholder="Search monsters..." autocomplete="off" oninput="filterMonsterPicker(this.value)" onfocus="filterMonsterPicker(this.value)" style="width:100%;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.8rem;box-sizing:border-box">';
+    html += '<div id="monsterPickerDropdown" class="search-dropdown"></div>';
+    html += '</div>';
     html += '<input type="number" id="monsterQty" value="1" min="1" max="20" style="width:55px;padding:0.4rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:0.8rem;font-family:var(--mono);text-align:center">';
     html += '<button class="btn-sm" onclick="addMonsterToEncounter()">Add</button>';
     html += '</div>';
@@ -1535,10 +1669,11 @@ function renderEncounterForm() {
 }
 
 function addMonsterToEncounter() {
-  const select = document.getElementById('monsterPicker');
+  const input = document.getElementById('monsterPicker');
   const qtyInput = document.getElementById('monsterQty');
-  if (!select) return;
-  const templateId = select.value;
+  if (!input) return;
+  const templateId = input.dataset.templateId;
+  if (!templateId) { setStatus('Select a monster first.', 'warning'); return; }
   const qty = Math.max(1, parseInt(qtyInput.value) || 1);
 
   // Check if already added — increment qty instead
@@ -1548,8 +1683,40 @@ function addMonsterToEncounter() {
   } else {
     formData.monsters.push({ templateId, qty });
   }
+  input.value = '';
+  input.dataset.templateId = '';
   renderEncounterForm();
 }
+
+function filterMonsterPicker(query) {
+  const dropdown = document.getElementById('monsterPickerDropdown');
+  if (!dropdown) return;
+  const q = query.toLowerCase();
+  const matches = state.templates.filter(t => t.name.toLowerCase().includes(q));
+  if (matches.length === 0) {
+    dropdown.innerHTML = '<div class="search-dropdown-item" style="color:var(--text-dim);cursor:default">No matches</div>';
+  } else {
+    dropdown.innerHTML = matches.map(t =>
+      '<div class="search-dropdown-item" onmousedown="selectMonster(\'' + t.id + '\')">' + esc(t.name) + '<span class="cr-tag">CR ' + esc(t.cr || '?') + '</span></div>'
+    ).join('');
+  }
+  dropdown.classList.add('open');
+}
+
+function selectMonster(templateId) {
+  const input = document.getElementById('monsterPicker');
+  const dropdown = document.getElementById('monsterPickerDropdown');
+  const t = state.templates.find(t => t.id === templateId);
+  if (!input || !t) return;
+  input.value = t.name;
+  input.dataset.templateId = templateId;
+  if (dropdown) dropdown.classList.remove('open');
+}
+
+document.addEventListener('click', function(e) {
+  const dropdown = document.getElementById('monsterPickerDropdown');
+  if (dropdown && !e.target.closest('.search-select')) dropdown.classList.remove('open');
+});
 
 function saveEncounter() {
   if (!formData.name.trim()) {
@@ -1596,8 +1763,10 @@ function deleteEncounter(id) {
   if (!confirm('Delete encounter "' + e.name + '"?')) return;
   state.encounters = state.encounters.filter(e => e.id !== id);
   save('encounters');
-  if (state.combat && state.combat.encounterId === id) {
-    state.combat = null;
+  const hadCombats = state.combats.length;
+  state.combats = state.combats.filter(c => c.encounterId !== id);
+  if (state.combats.length !== hadCombats) {
+    activeCombatId = null;
     pendingCombatEncounterId = null;
     saveCombat();
   }
@@ -1781,8 +1950,10 @@ function deleteParty(id) {
 function renderCombatView() {
   const el = document.getElementById('viewCombat');
 
-  if (state.combat && state.combat.active) {
-    if (state.combat.round === 0) {
+  // Active combat selected?
+  const active = getActiveCombat();
+  if (active && active.active) {
+    if (active.round === 0) {
       renderInitiativeSetup(el);
     } else {
       renderActiveCombat(el);
@@ -1790,12 +1961,48 @@ function renderCombatView() {
     return;
   }
 
+  // Starting a new combat?
   if (pendingCombatEncounterId) {
     el.innerHTML = renderCombatPartySelect();
     return;
   }
 
-  el.innerHTML = '<div class="empty-state"><p>No active combat.</p><p>Go to <strong>Encounters</strong> and click <strong>Combat</strong> to start one.</p></div>';
+  // Have existing combats? Show combat list
+  if (state.combats.length > 0) {
+    renderCombatList(el);
+    return;
+  }
+
+  el.innerHTML = '<div class="empty-state"><p>No active combats.</p><p>Go to <strong>Encounters</strong> and click <strong>Combat</strong> to start one.</p></div>';
+}
+
+function renderCombatList(el) {
+  let html = '<div class="form-section">';
+  html += '<div class="form-section-title">Active Combats</div>';
+  state.combats.forEach(combat => {
+    const enc = state.encounters.find(e => e.id === combat.encounterId);
+    const currentName = combat.combatants[combat.turnIndex] ? combat.combatants[combat.turnIndex].name : '—';
+    const alive = combat.combatants.filter(c => !c.dead).length;
+    html += '<div class="combat-list-card" onclick="resumeCombat(\'' + combat.id + '\')">';
+    html += '<div class="combat-list-name">' + esc(combat.name || (enc ? enc.name : 'Combat')) + '</div>';
+    html += '<div class="combat-list-info">';
+    if (combat.round === 0) {
+      html += '<span class="round-badge" style="font-size:0.65rem;padding:0.15rem 0.4rem">Setup</span>';
+    } else {
+      html += '<span class="round-badge" style="font-size:0.65rem;padding:0.15rem 0.4rem">Round ' + combat.round + '</span>';
+      html += '<span style="font-size:0.75rem;color:var(--text-dim)">Turn: ' + esc(currentName) + '</span>';
+    }
+    html += '<span style="font-size:0.75rem;color:var(--text-dim)">' + alive + '/' + combat.combatants.length + ' alive</span>';
+    html += '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function resumeCombat(combatId) {
+  activeCombatId = combatId;
+  render();
 }
 
 let pendingCombatEncounterId = null;
@@ -1892,7 +2099,9 @@ function launchCombat(partyId) {
     });
   });
 
-  state.combat = {
+  const newCombat = {
+    id: uuid(),
+    name: enc.name + ' \u2014 ' + party.name,
     encounterId: enc.id,
     partyId: party.id,
     round: 0,
@@ -1901,6 +2110,8 @@ function launchCombat(partyId) {
     damageLog: [],
     active: true
   };
+  state.combats.push(newCombat);
+  activeCombatId = newCombat.id;
 
   pendingCombatEncounterId = null;
   saveCombat();
@@ -1913,7 +2124,7 @@ function launchCombat(partyId) {
 // ═══════════════════════════════════════════════════════════════
 
 function renderInitiativeSetup(el) {
-  const combat = state.combat;
+  const combat = getActiveCombat();
   const enc = state.encounters.find(e => e.id === combat.encounterId);
 
   let html = '<div class="form-section">';
@@ -1953,14 +2164,14 @@ function renderInitiativeSetup(el) {
 }
 
 function setCombatantInit(idx, value) {
-  state.combat.combatants[idx].init = value === '' ? null : +value;
+  getActiveCombat().combatants[idx].init = value === '' ? null : +value;
   saveCombat();
 }
 
 function addAdhocCombatant() {
   const name = prompt('Combatant name (e.g., "Lair Action", "Reinforcements"):');
   if (!name || !name.trim()) return;
-  const combat = state.combat;
+  const combat = getActiveCombat();
   combat.combatants.push({
     id: uuid(),
     name: name.trim(),
@@ -1979,7 +2190,7 @@ function addAdhocCombatant() {
 }
 
 function beginCombat() {
-  const combat = state.combat;
+  const combat = getActiveCombat();
   const missing = combat.combatants.filter(c => c.type === 'player' && (c.init === null || c.init === undefined));
   if (missing.length > 0) {
     setStatus('Enter initiative for: ' + missing.map(c => c.name).join(', '), 'error');
@@ -1999,11 +2210,14 @@ function beginCombat() {
 // ═══════════════════════════════════════════════════════════════
 
 function renderActiveCombat(el) {
-  const combat = state.combat;
+  const combat = getActiveCombat();
   let html = '';
 
   // ── Combat Bar ──
   html += '<div class="combat-bar">';
+  if (state.combats.length > 1) {
+    html += '<button class="btn-sm" onclick="activeCombatId=null;render()" title="Back to combat list">&laquo; List</button>';
+  }
   html += '<span class="round-badge">Round ' + combat.round + '</span>';
   html += '<button class="btn-sm" onclick="prevTurn()">&laquo; Prev</button>';
   html += '<button class="btn-sm btn-action" onclick="nextTurn()">Next &raquo;</button>';
@@ -2350,7 +2564,7 @@ function renderCombatantDetail(c, idx, template) {
 }
 
 function toggleCombatantDetail(idx) {
-  const c = state.combat.combatants[idx];
+  const c = getActiveCombat().combatants[idx];
   c._expanded = !c._expanded;
   const detailEl = document.getElementById('detail-' + idx);
   if (detailEl) {
@@ -2359,12 +2573,12 @@ function toggleCombatantDetail(idx) {
 }
 
 function setCombatantNotes(idx, value) {
-  state.combat.combatants[idx].notes = value;
+  getActiveCombat().combatants[idx].notes = value;
   saveCombat();
 }
 
 function setPlayerAc(idx, value) {
-  state.combat.combatants[idx].ac = value || 0;
+  getActiveCombat().combatants[idx].ac = value || 0;
   saveCombat();
   render();
 }
@@ -2391,7 +2605,7 @@ function updateConditionFields(idx) {
 }
 
 function addCondition(idx) {
-  const c = state.combat.combatants[idx];
+  const c = getActiveCombat().combatants[idx];
   const nameEl = document.getElementById('condName-' + idx);
   const typeEl = document.getElementById('condType-' + idx);
   if (!nameEl || !typeEl) return;
@@ -2427,7 +2641,7 @@ function addCondition(idx) {
 }
 
 function removeCondition(idx, condIdx) {
-  const c = state.combat.combatants[idx];
+  const c = getActiveCombat().combatants[idx];
   if (!c.conditions || !c.conditions[condIdx]) return;
   const name = c.conditions[condIdx].name;
   c.conditions.splice(condIdx, 1);
@@ -2441,7 +2655,7 @@ function removeCondition(idx, condIdx) {
 // ═══════════════════════════════════════════════════════════════
 
 function setConcentration(idx, spellName) {
-  const c = state.combat.combatants[idx];
+  const c = getActiveCombat().combatants[idx];
   c.concentration = spellName.trim() || null;
   if (c.concentration) {
     setStatus(c.name + ' concentrating on ' + c.concentration, 'success');
@@ -2451,7 +2665,7 @@ function setConcentration(idx, spellName) {
 }
 
 function dropConcentration(idx) {
-  const c = state.combat.combatants[idx];
+  const c = getActiveCombat().combatants[idx];
   const spell = c.concentration;
   c.concentration = null;
   setStatus(c.name + ' dropped concentration' + (spell ? ' on ' + spell : ''), 'warning');
@@ -2470,7 +2684,7 @@ function applyDamage(idx) {
   let dmg = originalDmg;
   if (dmg === 0) return;
 
-  const c = state.combat.combatants[idx];
+  const c = getActiveCombat().combatants[idx];
   const maxHp = resolveField(c, 'hpMax');
 
   // THP absorbs first
@@ -2510,7 +2724,7 @@ function applyHeal(idx) {
   const heal = Math.max(0, parseInt(input.value) || 0);
   if (heal === 0) return;
 
-  const c = state.combat.combatants[idx];
+  const c = getActiveCombat().combatants[idx];
   const maxHp = resolveField(c, 'hpMax');
   let curHp = c.currentHp !== undefined ? c.currentHp : maxHp;
   curHp = Math.min(curHp + heal, maxHp);
@@ -2528,7 +2742,7 @@ function applyTempHp(idx) {
   if (!input) return;
   const val = Math.max(0, parseInt(input.value) || 0);
   if (val === 0) return;
-  const c = state.combat.combatants[idx];
+  const c = getActiveCombat().combatants[idx];
   // THP doesn't stack — take the higher value
   c.tempHp = Math.max(c.tempHp || 0, val);
   setStatus(c.name + ' gains ' + val + ' temp HP', 'success');
@@ -2541,7 +2755,7 @@ function applyTempHp(idx) {
 // ═══════════════════════════════════════════════════════════════
 
 function useFeature(combatantIdx, featureIdx) {
-  const c = state.combat.combatants[combatantIdx];
+  const c = getActiveCombat().combatants[combatantIdx];
   const template = getTemplate(c);
   if (!template) return;
   const f = template.features[featureIdx];
@@ -2556,7 +2770,7 @@ function useFeature(combatantIdx, featureIdx) {
 }
 
 function restoreFeature(combatantIdx, featureIdx) {
-  const c = state.combat.combatants[combatantIdx];
+  const c = getActiveCombat().combatants[combatantIdx];
   const template = getTemplate(c);
   if (!template) return;
   const f = template.features[featureIdx];
@@ -2571,7 +2785,7 @@ function restoreFeature(combatantIdx, featureIdx) {
 }
 
 function rollRecharge(combatantIdx, featureIdx) {
-  const c = state.combat.combatants[combatantIdx];
+  const c = getActiveCombat().combatants[combatantIdx];
   const template = getTemplate(c);
   if (!template) return;
   const f = template.features[featureIdx];
@@ -2597,7 +2811,7 @@ function rollRecharge(combatantIdx, featureIdx) {
 // ═══════════════════════════════════════════════════════════════
 
 function useLegendaryAction(combatantIdx, laIdx) {
-  const c = state.combat.combatants[combatantIdx];
+  const c = getActiveCombat().combatants[combatantIdx];
   const template = getTemplate(c);
   if (!template) return;
   const la = template.legendaryActions[laIdx];
@@ -2613,7 +2827,7 @@ function useLegendaryAction(combatantIdx, laIdx) {
 }
 
 function useLegendaryResistance(combatantIdx) {
-  const c = state.combat.combatants[combatantIdx];
+  const c = getActiveCombat().combatants[combatantIdx];
   const template = getTemplate(c);
   if (!template) return;
   if (c.legendaryResistancesRemaining === undefined) c.legendaryResistancesRemaining = template.legendaryResistances;
@@ -2627,7 +2841,7 @@ function useLegendaryResistance(combatantIdx) {
 }
 
 function restoreLegendaryResistance(combatantIdx) {
-  const c = state.combat.combatants[combatantIdx];
+  const c = getActiveCombat().combatants[combatantIdx];
   const template = getTemplate(c);
   if (!template) return;
   if (c.legendaryResistancesRemaining === undefined) c.legendaryResistancesRemaining = template.legendaryResistances;
@@ -2639,7 +2853,7 @@ function restoreLegendaryResistance(combatantIdx) {
 }
 
 function restoreLegendaryAction(combatantIdx) {
-  const c = state.combat.combatants[combatantIdx];
+  const c = getActiveCombat().combatants[combatantIdx];
   const template = getTemplate(c);
   if (!template) return;
   if (c.legendaryActionsRemaining === undefined) c.legendaryActionsRemaining = template.legendaryActionBudget;
@@ -2655,7 +2869,7 @@ function restoreLegendaryAction(combatantIdx) {
 // ═══════════════════════════════════════════════════════════════
 
 function rollAbilityCheck(combatantIdx, ability) {
-  const c = state.combat.combatants[combatantIdx];
+  const c = getActiveCombat().combatants[combatantIdx];
   const template = getTemplate(c);
   if (!template) return;
   const mod = abilityMod(template.abilities[ability]);
@@ -2668,7 +2882,7 @@ function rollAbilityCheck(combatantIdx, ability) {
 }
 
 function rollSavingThrow(combatantIdx, ability) {
-  const c = state.combat.combatants[combatantIdx];
+  const c = getActiveCombat().combatants[combatantIdx];
   const template = getTemplate(c);
   if (!template) return;
   // Check for proficient saving throw
@@ -2687,7 +2901,7 @@ function rollSavingThrow(combatantIdx, ability) {
 // ═══════════════════════════════════════════════════════════════
 
 function rollAttack(combatantIdx, attackIdx, mode) {
-  const c = state.combat.combatants[combatantIdx];
+  const c = getActiveCombat().combatants[combatantIdx];
   const template = getTemplate(c);
   if (!template) return;
   const atk = template.attacks[attackIdx];
@@ -2714,7 +2928,7 @@ function rollAttack(combatantIdx, attackIdx, mode) {
 }
 
 function rollDamageForAttack(combatantIdx, attackIdx, crit) {
-  const c = state.combat.combatants[combatantIdx];
+  const c = getActiveCombat().combatants[combatantIdx];
   const template = getTemplate(c);
   if (!template) return;
   const atk = template.attacks[attackIdx];
@@ -2751,7 +2965,7 @@ function rollDamageForAttack(combatantIdx, attackIdx, crit) {
 function renderRollLog(combatantIdx) {
   const el = document.getElementById('rollLog-' + combatantIdx);
   if (!el) return;
-  const c = state.combat.combatants[combatantIdx];
+  const c = getActiveCombat().combatants[combatantIdx];
   if (!c.rollLog || c.rollLog.length === 0) { el.innerHTML = ''; return; }
   let html = '<div class="roll-log">';
   c.rollLog.forEach(entry => {
@@ -2768,7 +2982,7 @@ function renderRollLog(combatantIdx) {
 // ═══════════════════════════════════════════════════════════════
 
 function applyTurnStartEffects(idx) {
-  const c = state.combat.combatants[idx];
+  const c = getActiveCombat().combatants[idx];
   const template = getTemplate(c);
   c.reactionUsed = false;
   c.rollLog = [];
@@ -2809,7 +3023,7 @@ function applyTurnStartEffects(idx) {
 }
 
 function nextTurn() {
-  const combat = state.combat;
+  const combat = getActiveCombat();
   if (!combat || combat.round < 1) return;
 
   const startIdx = combat.turnIndex;
@@ -2836,7 +3050,7 @@ function nextTurn() {
 }
 
 function prevTurn() {
-  const combat = state.combat;
+  const combat = getActiveCombat();
   if (!combat || combat.round < 1) return;
 
   const startIdx = combat.turnIndex;
@@ -2862,7 +3076,7 @@ function prevTurn() {
 }
 
 function toggleReaction(idx) {
-  state.combat.combatants[idx].reactionUsed = !state.combat.combatants[idx].reactionUsed;
+  getActiveCombat().combatants[idx].reactionUsed = !getActiveCombat().combatants[idx].reactionUsed;
   saveCombat();
   render();
 }
@@ -2872,7 +3086,7 @@ function toggleReaction(idx) {
 // ═══════════════════════════════════════════════════════════════
 
 function editInit(idx, value) {
-  const combat = state.combat;
+  const combat = getActiveCombat();
   const isCurrentTurn = (idx === combat.turnIndex);
   combat.combatants[idx].init = value === '' ? null : +value;
 
@@ -2903,7 +3117,7 @@ function editInit(idx, value) {
 }
 
 function killCombatant(idx) {
-  const c = state.combat.combatants[idx];
+  const c = getActiveCombat().combatants[idx];
   c.dead = true;
   if (c.type === 'monster') c.currentHp = 0;
   setStatus(c.name + ' is dead.', 'warning');
@@ -2912,7 +3126,7 @@ function killCombatant(idx) {
 }
 
 function reviveCombatant(idx) {
-  const c = state.combat.combatants[idx];
+  const c = getActiveCombat().combatants[idx];
   c.dead = false;
   if (c.type === 'monster' && (c.currentHp === undefined || c.currentHp <= 0)) c.currentHp = 1;
   setStatus(c.name + ' is back!', 'success');
@@ -2921,7 +3135,7 @@ function reviveCombatant(idx) {
 }
 
 function removeCombatant(idx) {
-  const combat = state.combat;
+  const combat = getActiveCombat();
   const c = combat.combatants[idx];
   if (!confirm('Remove ' + c.name + ' from combat?')) return;
 
@@ -2940,10 +3154,12 @@ function removeCombatant(idx) {
 }
 
 function endCombat() {
-  if (state.combat && state.combat.round >= 1) {
+  const active = getActiveCombat();
+  if (active && active.round >= 1) {
     if (!confirm('End combat? This cannot be undone.')) return;
   }
-  state.combat = null;
+  state.combats = state.combats.filter(c => c.id !== activeCombatId);
+  activeCombatId = null;
   pendingCombatEncounterId = null;
   saveCombat();
   setStatus('Combat ended.', 'warning');
@@ -2951,10 +3167,111 @@ function endCombat() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// ── Import / Export ──
+// ═══════════════════════════════════════════════════════════════
+
+async function exportData() {
+  try {
+    const payload = {
+      version: 1,
+      exported: new Date().toISOString(),
+      templates: state.templates,
+      encounters: state.encounters,
+      parties: state.parties,
+      players: state.players,
+      combats: state.combats
+    };
+    const json = JSON.stringify(payload);
+    const compressed = await compress(json);
+    const header = '[SquishText] To decode, base64-decode the string below then inflate (deflate-raw). Or paste at https://promptferret.github.io/tools/squishtext/\n';
+    const blob = header + compressed;
+    const file = new Blob([blob], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file);
+    a.download = 'encounter-backup-' + new Date().toISOString().slice(0, 10) + '.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus('Backup exported!', 'success');
+  } catch (e) {
+    console.error('Export failed:', e);
+    setStatus('Export failed: ' + e.message, 'error');
+  }
+}
+
+function showImportDialog() {
+  // Remove existing modal if any
+  const existing = document.getElementById('importModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'importModal';
+  modal.className = 'modal-overlay';
+  modal.innerHTML = '<div class="modal-content">' +
+    '<div class="form-section-title" style="margin-bottom:0.75rem">Import Backup</div>' +
+    '<p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.75rem">Select a backup file (.txt or .json) exported from this tool.</p>' +
+    '<input type="file" id="importFileInput" accept=".txt,.json" style="margin-bottom:1rem;font-size:0.8rem;color:var(--text)">' +
+    '<p style="font-size:0.7rem;color:var(--warning);margin-bottom:1rem">Warning: This will replace all current data.</p>' +
+    '<div style="display:flex;gap:0.5rem;justify-content:flex-end">' +
+    '<button class="btn-sm" onclick="document.getElementById(\'importModal\').remove()">Cancel</button>' +
+    '<button class="btn-sm btn-action" onclick="doImport()">Import</button>' +
+    '</div></div>';
+  modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+async function doImport() {
+  const fileInput = document.getElementById('importFileInput');
+  if (!fileInput || !fileInput.files.length) {
+    setStatus('Select a file first.', 'warning');
+    return;
+  }
+  try {
+    const text = await fileInput.files[0].text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      const decompressed = await decompress(text);
+      data = JSON.parse(decompressed);
+    }
+    if (!data.templates && !data.encounters) throw new Error('Invalid backup format');
+    state.templates = data.templates || [];
+    state.encounters = data.encounters || [];
+    state.parties = data.parties || [];
+    state.players = data.players || [];
+    state.combats = data.combats || [];
+    activeCombatId = null;
+    save();
+    const modal = document.getElementById('importModal');
+    if (modal) modal.remove();
+    setStatus('Data imported successfully! ' + state.templates.length + ' templates, ' + state.encounters.length + ' encounters.', 'success');
+    render();
+    updateStorageInfo();
+  } catch (e) {
+    console.error('Import failed:', e);
+    setStatus('Import failed: ' + e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Storage Indicator ──
+// ═══════════════════════════════════════════════════════════════
+
+function updateStorageInfo() {
+  if (!navigator.storage || !navigator.storage.estimate) return;
+  navigator.storage.estimate().then(est => {
+    const el = document.getElementById('storageInfo');
+    if (!el) return;
+    const usedMB = (est.usage / (1024 * 1024)).toFixed(1);
+    el.textContent = 'Storage: ' + usedMB + ' MB used';
+  }).catch(() => {});
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ── Init ──
 // ═══════════════════════════════════════════════════════════════
 
-load().then(render);
+load().then(() => { render(); updateStorageInfo(); });
 </script>
 
 </body>
