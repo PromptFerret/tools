@@ -552,12 +552,12 @@ Fractional CRs (1/8, 1/4, 1/2) use +2.
 
 ## Tools That Use This Format
 
-- [5etools](https://5e.tools/) — the source of this data format
-- [Foundry VTT Plutonium](https://5e.tools/plutonium.html) — imports 5etools JSON into Foundry VTT
-- [ttrpg-convert-cli](https://github.com/ebullient/ttrpg-convert-cli) — converts 5etools JSON to Obsidian markdown
-- [5etools-monster-grabber](https://github.com/jarrodwhitley/5etools-monster-grabber) — converts to Shieldmaiden format
-- [Bestiary Builder](https://bestiarybuilder.com/) — creature builder with 5etools import
-- [PromptFerret EncounterManager](https://promptferret.github.io/EncounterManager/) — D&D encounter & initiative tracker with 5etools import
+- [5etools](https://5e.tools/) - the source of this data format
+- [Foundry VTT Plutonium](https://5e.tools/plutonium.html) - imports 5etools JSON into Foundry VTT
+- [ttrpg-convert-cli](https://github.com/ebullient/ttrpg-convert-cli) - converts 5etools JSON to Obsidian markdown
+- [5etools-monster-grabber](https://github.com/jarrodwhitley/5etools-monster-grabber) - converts to Shieldmaiden format
+- [Bestiary Builder](https://bestiarybuilder.com/) - creature builder with 5etools import
+- [PromptFerret EncounterManager](https://promptferret.github.io/EncounterManager/) - D&D encounter & initiative tracker with 5etools import
 
 ---
 

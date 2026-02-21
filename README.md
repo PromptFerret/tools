@@ -1,6 +1,6 @@
 # PromptFerret Tools
 
-Open-source, single-file HTML web tools for AI workflows, D&D utilities, and chatbot integrations. No build steps, no frameworks, no external dependencies — every tool is a single `index.html` you can host anywhere.
+Open-source, single-file HTML web tools for AI workflows, D&D utilities, and chatbot integrations. No build steps, no frameworks, no external dependencies - every tool is a single `index.html` you can host anywhere.
 
 **Portal:** [promptferret.github.io/tools](https://promptferret.github.io/tools/)
 
@@ -18,8 +18,8 @@ Open-source, single-file HTML web tools for AI workflows, D&D utilities, and cha
 Each tool is a standalone GitHub repo under the [PromptFerret](https://github.com/PromptFerret) org, deployed via GitHub Pages at `promptferret.github.io/<RepoName>/`.
 
 This repo (`tools`) serves as:
-- **Portal page** — [promptferret.github.io/tools](https://promptferret.github.io/tools/) with cards linking to each tool
-- **Redirect stubs** — the tools used to live as subdirectories here; old URLs (like `/tools/squishtext/`) redirect to the new standalone locations
+- **Portal page** - [promptferret.github.io/tools](https://promptferret.github.io/tools/) with cards linking to each tool
+- **Redirect stubs** - the tools used to live as subdirectories here; old URLs (like `/tools/squishtext/`) redirect to the new standalone locations
 
 ## Shared Design
 
@@ -27,9 +27,9 @@ All tools follow the same conventions:
 
 - **Single HTML file** with embedded CSS and JavaScript
 - **Dark theme** (`--bg: #0f0f17`, `--surface: #1a1a2e`, `--accent: #7c5cbf`)
-- **Responsive** — stacks at 640px breakpoint
-- **No external dependencies** — vanilla browser APIs only
-- **No build step** — edit and refresh
+- **Responsive** - stacks at 640px breakpoint
+- **No external dependencies** - vanilla browser APIs only
+- **No build step** - edit and refresh
 
 ## Running Locally
 
