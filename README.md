@@ -9,8 +9,8 @@ Open-source, single-file HTML web tools for AI workflows, D&D utilities, and cha
 | Tool | Description | Live Link |
 |------|-------------|-----------|
 | [SquishText](https://github.com/PromptFerret/SquishText) | Compress text into shareable encoded strings | [Launch](https://promptferret.github.io/SquishText/) |
-| [Encounter Manager](https://github.com/PromptFerret/EncounterManager) | D&D encounter manager & initiative tracker | [Launch](https://promptferret.github.io/EncounterManager/) |
-| [GSheet Character Exporter](https://github.com/PromptFerret/GSheetCharacterExporter) | Export Google Sheets D&D characters to Markdown/JSON | [Launch](https://promptferret.github.io/GSheetCharacterExporter/) |
+| [EncounterManager](https://github.com/PromptFerret/EncounterManager) | D&D encounter manager & initiative tracker | [Launch](https://promptferret.github.io/EncounterManager/) |
+| [GSheetCharacterExporter](https://github.com/PromptFerret/GSheetCharacterExporter) | Export Google Sheets D&D characters to Markdown/JSON | [Launch](https://promptferret.github.io/GSheetCharacterExporter/) |
 | [MarkdownSite](https://github.com/PromptFerret/MarkdownSite) | Single-file markdown document browser with Obsidian support | [Launch](https://promptferret.github.io/MarkdownSite/) |
 
 ## Architecture

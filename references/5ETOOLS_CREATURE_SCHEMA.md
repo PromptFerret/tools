@@ -557,7 +557,7 @@ Fractional CRs (1/8, 1/4, 1/2) use +2.
 - [ttrpg-convert-cli](https://github.com/ebullient/ttrpg-convert-cli) — converts 5etools JSON to Obsidian markdown
 - [5etools-monster-grabber](https://github.com/jarrodwhitley/5etools-monster-grabber) — converts to Shieldmaiden format
 - [Bestiary Builder](https://bestiarybuilder.com/) — creature builder with 5etools import
-- [PromptFerret Encounter Manager](https://promptferret.github.io/EncounterManager/) — D&D encounter & initiative tracker with 5etools import
+- [PromptFerret EncounterManager](https://promptferret.github.io/EncounterManager/) — D&D encounter & initiative tracker with 5etools import
 
 ---
 
