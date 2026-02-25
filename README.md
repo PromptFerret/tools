@@ -3,6 +3,7 @@
 Open-source, single-file HTML web tools for AI workflows, D&D utilities, and chatbot integrations. No build steps, no frameworks, no external dependencies - every tool is a single `index.html` you can host anywhere.
 
 **Portal:** [promptferret.github.io/tools](https://promptferret.github.io/tools/)
+**Discord:** [Join our Discord](https://discord.gg/xed4bCazym) for support, discussion, and additional resources.
 
 ## Tools
 
